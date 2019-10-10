@@ -1,6 +1,7 @@
 (* OCamlFlat.ml - AMD/2019 *)
 
-open OCamlFlatSupport
+open OCamlFlatSupport  
+(*#use "OCamlFlatSupport.ml";;*)
 
 (* --- Configuration --- *)
 
@@ -136,6 +137,8 @@ and (*module*) FiniteAutomaton : sig
 			method validate : unit
 			method toJSon: json
 
+			method closeEmpty : states -> transitions -> states
+			method nextStates : state -> symbol -> transitions -> states
 			method accept : word -> bool
 			method accept2 : word -> bool
 			method generate : int -> words
@@ -144,11 +147,12 @@ and (*module*) FiniteAutomaton : sig
 			method productive : states
 
 			method isDeterministic : bool
-			method toDeterministic : unit
-			method minimize : unit
+			method toDeterministic : transitions
+			method clean: FiniteAutomaton.model
+			method minimize : FiniteAutomaton.model
 			method toRegularExpression : RegularExpression.model
 
-			val representation : t
+			method representation : t
 		  end
 end
  =
@@ -169,7 +173,13 @@ struct
 	}
 
 	let modelDesignation () = "finite automaton"
+	
+	
+	
+	(*------Auxiliary functions---------*)
 
+	let hasTrans st sy ts = Set.exists (fun (x,y,_) -> x = st && y = sy) ts 
+	
 	class model (arg: t JSon.alternatives) =
 		object(self) inherit Model.model arg (modelDesignation ())
 
@@ -192,6 +202,9 @@ struct
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
 
+			method representation =
+				representation 
+			
 			method toJSon: json =
 				let rep = representation in
 				`Assoc [
@@ -230,6 +243,23 @@ struct
             					        "not all transitions are valid" ()
             			    )
 
+							
+			method closeEmpty (sts: states) (t: transitions): states =
+				let nextEpsilon1 st t =
+                    let n = Set.filter (fun (a,b,c) -> st = a && b = epsilon) t in
+                        Set.map ( fun (_,_,d) -> d ) n in	
+						
+				let rec nextEpsilons currsts t = 
+					let ns = Set.flatMap (fun nst -> nextEpsilon1 nst t) currsts in
+						if (Set.subset ns currsts) then ns else nextEpsilons (Set.union currsts ns) t in
+						
+				nextEpsilons sts t	
+                
+			method nextStates (st: state) (sy: symbol) (t: transitions): states =
+				let n = Set.filter (fun (a,b,c) -> st = a && sy = b) t in
+					Set.map ( fun (_,_,d) -> d ) n 
+				
+				
 
 			method accept2 (w: word): bool =
 			    let nextStates sy st t =
@@ -249,7 +279,6 @@ struct
        
 
             method accept (w: word): bool =
-			
                 let nextEpsilon1 st t =
                     let n = Set.filter (fun (a,b,c) -> st = a && b = epsilon) t in
                         Set.map ( fun (_,_,d) -> d ) n in			
@@ -269,7 +298,8 @@ struct
                 let rec accept2X sts w t =
                     match w with
                         [] -> (Set.inter sts representation.acceptStates) <> []
-                        |x::xs -> accept2X (transition sts x t) xs t in
+                        |x::xs -> let nextSts = transition sts x t in
+							nextSts <> Set.empty && accept2X nextSts xs t in
 						
                 let i = Set.add representation.initialState
                             (nextEpsilons [representation.initialState] representation.transitions) in
@@ -277,11 +307,9 @@ struct
 
 
 			method generate (length: int): words =
-			    let es = representation.acceptStates in
-			    let t = representation.transitions in
 			    let rec gen n is =
-                	if n = 0 then if Set.belongs is es then [[]] else []
-                	else let (x,_) = Set.partition (fun (a,_,_) -> a = is) t in
+                	if n = 0 then if Set.belongs is representation.acceptStates then [[]] else []
+                	else let (x,_) = Set.partition (fun (a,_,_) -> a = is) representation.transitions in
                         Set.flatMap (fun (_,b,c) -> if b = epsilon then gen (n-1) c else Util.addAll b (gen (n-1) c )) x
                 in
                 gen length representation.initialState
@@ -311,39 +339,112 @@ struct
                 let n = Set.exists (fun x -> x = true) ndet in
                 eps || n
 
-            method toDeterministic: unit = ()
+				
+			method toDeterministic: transitions = 
+			
+				let move sts sy ts = Set.flatMap (fun st -> self#nextStates st sy ts ) sts in	
+				
+				let newR oneR sy ts = 
+					let nxtSts = move oneR sy ts in
+					let clsempty = self#closeEmpty nxtSts ts in
+					Set.union nxtSts clsempty in
+					
+					
+				let rToTs r = 
+					let nxtTrans = Set.map (fun sy -> (r,sy,newR r sy representation.transitions)) representation.alphabet in
+					Set.filter (fun (_,_,z) -> not (z = Set.empty)) nxtTrans in
+					
+				let rec rsToTs stsD rD trnsD alph = 
+					let nxtTs = Set.flatMap (fun stSet -> rToTs stSet ) rD in
+					let nxtRs = Set.map (fun (_,_,z) -> z) nxtTs in
+					let newRs = Set.filter (fun r -> not (Set.belongs r stsD)) nxtRs in
+					if newRs = Set.empty then (Set.union trnsD nxtTs) else 
+						rsToTs (Set.union newRs stsD) newRs (Set.union trnsD nxtTs) alph  in	
+				
+				let r1 = Set.add representation.initialState
+				(self#closeEmpty [representation.initialState] representation.transitions) in
+				
+								
+				let trnsD = rsToTs [r1] [r1] Set.empty representation.alphabet in
+				
+				let tds = Set.map (fun (a,b,c) -> (String.concat "," a, b, String.concat "," c)) trnsD in
+				
+				tds
+			
+			
+			
+			method clean: FiniteAutomaton.model =
+			
+				let usfSts = Set.inter self#productive (self#reachable representation.initialState) in
+                let usfTrs = Set.filter (fun (a,_,c) -> Set.belongs a usfSts &&
+					Set.belongs c usfSts) representation.transitions in
+                let usfAlf = Set.map (fun (_,a,_) -> a) usfTrs in
+				let newAccSts = Set.inter representation.acceptStates usfSts in
+				
+				new FiniteAutomaton.model (Representation {alphabet = usfAlf; allStates = usfSts; initialState = representation.initialState;
+					transitions = usfTrs; acceptStates = newAccSts} )
+				
+			
+			method minimize: FiniteAutomaton.model = 
+			
+				let self = self#clean in
+			
+				let usfSts = Set.inter self#productive (self#reachable representation.initialState) in
+                let usfTrs = Set.filter (fun (a,_,c) -> Set.belongs a usfSts &&
+					Set.belongs c usfSts) representation.transitions in
+                let usfAlf = Set.map (fun (_,a,_) -> a) usfTrs in
+				
+                let (inF, notF) = Set.partition (fun x -> Set.belongs x representation.acceptStates) usfSts in				
+                let distI1 = Set.combinations inF notF in
+								
+				let hasTransMulti sts sy ts = Set.partition (fun st -> hasTrans st sy ts) sts in
+				let distrib2 f (a,b) = f a b in
+				let distI2 = Set.flatMap (fun sy -> distrib2 Set.combinations (hasTransMulti usfSts sy usfTrs)) usfAlf in
+				
 
+				
+                let distI = Set.union distI1 distI2 in				
+                let stsXSts = Set.combinations usfSts usfSts in		
 
-			method minimize = ()
-
-			(*
-			let usfSts = Set.inter self#productive (self#reachable representation.initialState) in
-                        let usfTrs = Set.filter (fun (a,_,c) -> Set.belongs a usfSts &&
-                        Set.belongs c usfSts) representation.transitions in
-                        let usfAlf = Set.map ( fun (_,a,_) -> a ) usfTrs in
-                        let (inF, notF) = Set.partition (fun x -> Set.belongs x representation.acceptStates) usfSts in
-                        let distI1 = Set.flatMap ( fun a -> Set.map ( fun b -> (a,b) ) inF ) notF in
-
-                        let tMtrx = Array.make_matrix (Set.size usfSts) (Set.size usfAlf) [] in
-                        let r = Set.iteri (fun ia a -> Set.iteri (fun ib b -> tMtrx.(ia).(ib) <-
-                        Set.filter (fun (x,y,_) -> a = x && b = y) usfTrs) usfAlf) usfSts in
-                        let combine p = fun (a,b) -> Set.flatMap (fun x -> Set.map ( fun y -> (x,y) ) b) a in
-                        let distI2 = List.mapi (fun ia alf -> combine (Set.partition
-                        (fun st -> !(tMtrx.(Util.indexOf st usfSts).(ia) = [])) usfSts) ) usfAlf in
-                        (* Set.exists (fun (x,y,_) -> x = st && y = alf) usfTrs *)
-
-                        let distI = Set.union distI1 distI2 in
-                        let stsTimesSts = Set.flatMap (fun a -> Set.map (fun b -> (a,b)) usfSts) usfSts
-
-                        let findR sts = Set.flatMap (fun (a,b) ->  ) st in
-
-                        let rec aped p q = if (q = [] || (Set.union p q) = stsTimesSts) then Set.union p q
-                            else aped (Set.union p q) (findR q) in
-                        let dist = aped distI (findR distI)
-			*)
-
-
-
+				
+				let reachingSts st1 st2 sy p = 
+					let t1 = Set.filter (fun (_,y,z) -> z = st1 && y = sy) usfTrs in
+					let t2 = Set.filter (fun (_,y,z) -> z = st2 && y = sy) usfTrs in
+					let s1 = Set.map (fun (x,_,_) -> x) t1 in
+					let s2 = Set.map (fun (x,_,_) -> x) t2 in
+					Set.diff (Set.combinations s1 s2) p in
+								
+				let findAR p q = Set.flatMap (fun (a,b) -> Set.flatMap (fun sy -> reachingSts a b sy p) usfAlf) q in
+				
+				let distA = findAR distI distI in
+				
+                let rec aped p q = if (q = Set.empty || (Set.union p q) = stsXSts) then Set.union p q
+                    else aped (Set.union p q) (findAR (Set.union p q) q ) in
+                let dist = aped distI distA in
+				
+				
+				let rec halfCombs sts = 
+					match sts with 
+						[] -> []
+						|x::xs -> Set.union (Set.combinations [x] xs) (halfCombs xs) in
+				let halfTriang = halfCombs usfSts in
+				
+				let equiv = Set.filter ( fun (a,b) -> not (Set.belongs (a,b) dist) && 
+					not (Set.belongs (b,a) dist) ) halfTriang in
+				
+				let eq = Set.map (fun (a,b) -> b) equiv in
+				let newSts = Set.add representation.initialState (Set.diff usfSts eq) in
+				let newAccSts = Set.inter representation.acceptStates newSts in
+				let newTs1 = Set.filter (fun (x,_,_) -> not (Set.belongs x eq)) usfTrs in
+				let newTrans = Set.flatMap (fun (a,b) -> Set.map (fun (x,y,z) -> 
+					if z = b then (x,y,a) else (x,y,z) ) newTs1) equiv in
+				
+				
+				new FiniteAutomaton.model (Representation {alphabet = representation.alphabet; allStates = newSts; 
+					initialState = representation.initialState;	transitions = newTrans;	acceptStates = newAccSts} ) 
+					
+			
+	
 			method toRegularExpression =
 				new RegularExpression.model (Representation (RegExpSyntax.parse "ab+c*"))
 		end
@@ -357,52 +458,63 @@ struct
 	let active = false
 
 	let test0 () =
-		let m = Model.loadModel "examples/fa_abc.json" in
+		let m = Model.loadModel "fa_abc.json" in
 			let j = m#toJSon in
 				JSon.show j
 
 	let test1 () =
-		let fa = new FiniteAutomaton.model (File "examples/fa_abcd.json") in
+		let fa = new FiniteAutomaton.model (File "fa_abcd.json") in
 			let j = fa#toJSon in
 				JSon.show j
 
 	let test2 () =
-  		let fa = new FiniteAutomaton.model (File "examples/fa_abc.json") in
+  		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
+			Util.println "generated words:"; Util.printWordList (fa#generate 0 );
   		    Util.println "generated words:"; Util.printWordList (fa#generate 1 );
   		    Util.println "generated words:"; Util.printWordList (fa#generate 2 );
   		    Util.println "generated words:"; Util.printWordList (fa#generate 3 )
 
     let test3 () =
-      		let fa = new FiniteAutomaton.model (File "examples/fa_abc.json") in
+      		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
       		    Util.println "reachable states:"; Util.printStates (fa#reachable "START" ); Util.println " "
 
     let test4 () =
-          		let fa = new FiniteAutomaton.model (File "examples/fa_abc.json") in
+          		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
           		    Util.println "productive states:"; Util.printStates (fa#productive ); Util.println " "
 
     let test5 () =
-          		let fa = new FiniteAutomaton.model (File "examples/fa_abc.json") in
+          		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
           		    if fa#isDeterministic then
           		        Util.println "automata is non-deterministic" else Util.println "automata is deterministic"
 
 
     let test6 () =
-          		let fa = new FiniteAutomaton.model (File "examples/fa_abc.json") in
-          		   if fa#accept ['b'] then Util.println "word was accepted" else Util.println "word was not accepted" ;
-          		   if fa#accept ['b';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
+          		   if fa#accept ['~'] then Util.println "word was accepted" else Util.println "word was not accepted" ;
+          		   if fa#accept [] then Util.println "word was accepted" else Util.println "word was not accepted";
           		   if fa#accept ['a'] then Util.println "word was accepted" else Util.println "word was not accepted";
           		   if fa#accept ['a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
-          		   if fa#accept ['a';'d';'a';'b';'c'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          		   if fa#accept ['a';'b';'a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
           		   if fa#accept ['c'] then Util.println "word was accepted" else Util.println "word was not accepted"
 
-
-
+	let test7 () =
+		let fa = new FiniteAutomaton.model (File "fa_abc3.json") in
+			let ts = fa#toDeterministic in
+			Util.println "deterministic automaton:" ;
+			Set.iter (fun (a,b,c) -> Util.printTransition a b c) ts
+			
+	let test8 () =
+		let fa = new FiniteAutomaton.model (File "fa_minimize2.json") in
+			let rep = fa#representation in
+			let sts = rep.allStates in
+			print_string "minimize :"
+			
 
 
 	let runAll =
 		if active then (
 			Util.header "FiniteAutomatonTests";
-			test6 ()
+			test8 ()
 		)
 end
 
@@ -480,17 +592,17 @@ struct
 	let active = false
 
 	let test0 () =
-		let m = Model.loadModel "examples/re_abc.json" in
+		let m = Model.loadModel "re_abc.json" in
 			let j = m#toJSon in
 				JSon.show j
 
 	let test1 () =
-		let re = new RegularExpression.model (File "examples/re_abc.json") in
+		let re = new RegularExpression.model (File "re_abc.json") in
 			let j = re#toJSon in
 				JSon.show j
 
 	let test2 () =
-		let fa = new FiniteAutomaton.model (File "examples/fa_abc.json") in
+		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
 		let r = fa#toRegularExpression in
 		let j = r#toJSon in
 			JSon.show j
