@@ -60,6 +60,12 @@ module Util =  struct
 	let printStates (st:string list) =
 	    List.iter (fun x -> print_string x; print_string ", ") st
 
+		
+	let printTransition (a:string) (b:char) (c:string) = 
+		print_string "("; print_string a; print_string ", ";
+		print_char b; print_string ", ";
+		print_string c; println ")"
+
 	let printWord (w:char list) =
 	    print_char '\'' ; List.iter (fun c -> print_char c ) w; println "'"
 
@@ -67,6 +73,16 @@ module Util =  struct
 	    List.iter printWord l
 
 	let addAll symb = List.map (fun l -> symb::l)
+	
+	let distrib2 f (a,b) = f a b 
+
+    let indexOf e l =
+        let rec index e l n =
+            match l with
+                [] -> -1
+                |x::xs -> if e = x then n else index e xs (n+1)
+        in
+        index e l 0
 
 
 
@@ -77,7 +93,7 @@ struct
 	let active = false
 
 	let test0 () =
-		Util.println (Util.load_file "examples/fa_abc.json")
+		Util.println (Util.load_file "fa_abc.json")
 
 
 	let test1 () =
@@ -113,6 +129,8 @@ module Set = struct
 	let flatMap f s = clear (List.flatten (List.map f s))
 	let iter f s = List.iter f s
 	let partition f s = let (a, b) = List.partition f s in (clear a, clear b)
+	let combinations aSet bSet = flatMap (fun x -> List.map ( fun y -> (x,y) ) bSet) aSet
+	let allDistinct f s = size s = size (map f s)
 
 	let hasDuplicates (s: 'a list): bool = size s <> size (clear s)
 	let validate (l: 'a list) (culprit: string): 'a t =
@@ -237,7 +255,7 @@ module JSonTests = struct
 			JSon.show json
 
 	let test1 () =
-		let json = JSon.from_file "examples/fa_abc.json" in
+		let json = JSon.from_file "fa_abc.json" in
 			JSon.show json
 
 	let runAll =
