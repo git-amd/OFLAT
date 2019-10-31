@@ -58,7 +58,8 @@ module Util =  struct
 		println "----------" ; println str
 
 	let printStates (st:string list) =
-	    List.iter (fun x -> print_string x; print_string ", ") st
+	    List.iter (fun x -> print_string x; print_string ", ") st;
+		println " "
 
 		
 	let printTransition (a:string) (b:char) (c:string) = 

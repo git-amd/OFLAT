@@ -1,9 +1,8 @@
 (* OCamlFlat.ml - AMD/2019 *)
 
-open OCamlFlatSupport
+open OCamlFlatSupport  
 
-(* use "OCamlFlatSupport.ml";; *)
-
+(*#use "OCamlFlatSupport.ml";;*)
 
 (* --- Configuration --- *)
 
@@ -250,44 +249,64 @@ struct
 				
 				
 				
-			(* valida o automato carregado em ficheiro *)
+			(**
+			* This method verifies if the automaton is valid. 
+			* An automaton is considered valid if its initial and acceptance states belong to the set of all its states
+			* and if all its transitions have states and symbols belonging to the set of all its states and its alphabet respectively.
+			* 
+			* Desc: If the automaton is invalid, the cause could derive from any combination of the following
+			* three options: either the initial state, one of the acceptance states, or one of the transitions does not follow the 
+			* previously discussed predicate. This method will print to the console stating which combination of these options caused  
+			* the automaton to be invalid
+			*)
 			method validate: unit = (
-            			    (* is initial state a valid state *)
-            				if not (Set.belongs representation.initialState representation.allStates) then
-            					Error.error representation.initialState
-            						"initial state does not belong to the set of all states" ()
-            				;
-            				(* are all accepted states valid *)
-            				if not (Set.subset representation.acceptStates representation.allStates) then
-            					Error.error self#name
-            					    "not all accepted states belong to the set of all states" ()
-            				;
-            				(* are all transitions valid *)
-            				let fromSt = transitionGet1 representation.transitions in
-            				let sy = transitionGet2 representation.transitions in
-            				let toSt = transitionGet3 representation.transitions in
-            				let alpha = representation.alphabet@[epsilon] in
-            				let cond = (Set.subset fromSt representation.allStates) &&
-            				(Set.subset sy alpha) && (Set.subset toSt representation.allStates) in
-            				if not cond then
-            					    Error.error self#name
-            					        "not all transitions are valid" ()
-            			    )
+			
+				(* does initial state belong to the set of all states *)
+				let validInitSt = Set.belongs representation.initialState representation.allStates in
+				
+				(* are all accepted states members of all states *)
+				let validAccSts = Set.subset representation.acceptStates representation.allStates in				
+					
+				let fromSt = transitionGet1 representation.transitions in
+            	let sy = transitionGet2 representation.transitions in
+            	let toSt = transitionGet3 representation.transitions in
+            	let alpha = representation.alphabet@[epsilon] in
+				
+				(* do all transitions have states belonging to all states and symbols belonging to the alphabet *)
+            	let validTrns = (Set.subset fromSt representation.allStates) &&
+            	(Set.subset sy alpha) && (Set.subset toSt representation.allStates) in
+				
+            	
+            	if not validInitSt then
+            		Error.error representation.initialState
+            			"initial state does not belong to the set of all states" ()
+            	;
+            	
+            	if not validAccSts then
+            		Error.error self#name
+            			"not all accepted states belong to the set of all states" ()
+            	;
+            	
+            	if not validTrns then
+            		Error.error self#name
+            			"not all transitions are valid" ()
+            	)
 
 							
 			method tracing : unit = ()
 
 			
 			
-			(* verifica se a palavra w e aceite pelo automato usando uma logica baseada em configuracoes
-			 
-				Comecamos com o par formado pelo estado inicial e pela palavra w. 
-				Para cada par (estado, palavra) geramos os novos pares em que o primeiro 
-				elemento sera um estado alcancavel do estado anterior a partir do primeiro simbolo da palavra restante,
-				e o segundo elemento sera o resto da palavra sem o primeiro simbolo. 
-				A funcao termina quando nao conseguimos gerar nenhum novo par ou quando geramos todos os pares em que 
-				a palavra esta vazia, e dizemos que w e aceite se pelo menos um desses pares tiver um estado de aceitacao.			 
-			 *)
+			(** 
+			* This method verifies if the given word is accepted by the automaton
+			*
+			* @param w:word -> word to be tested for acceptance 
+			*
+			* @returns bool -> true if w is accepted and false otherwise
+			*
+			* Desc: Checks if the automaton accepts word w using configurations (that is, pairs formed by a state and 
+			* a remaining word) and a breadth-first approach as to deal with potential non-termination 
+			*)
 			method accept2 (w: word): bool =
 						    
                 let rec acc cf t sta =
@@ -303,16 +322,15 @@ struct
                 acc [(representation.initialState,w)] representation.transitions representation.acceptStates
        
 
-			(* verifica se a palavra w e aceite pelo automato com base em logica de conjuntos
-			 
-				Comecamos com o conjunto de todos os estados contituidos pelo inicial, e pelos alcancaveis por epsilon
-				a partir do inicial. 
-				Para cada simbolo da palavra w, o conjunto de estados anteriores e transformado no conjunto de todos os
-				estados obtidos a partir de cada estado do conjunto anterior ao consumir o dado simbolo.
-				Terminamos quando nao conseguimos gerar nenhum conjunto, ou quando consumimos todos os simbolos de w.
-				A palavra w e aceite se ao consumir todos os seus simbolos, o ultimo conjunto gerado possui pelo menos
-				um estado de aceitacao			 
-			 *)
+			(** 
+			* This method verifies if the given word is accepted by the automaton
+			*
+			* @param w:word -> word to be accepted 
+			*
+			* @returns bool -> true if w is accepted and false otherwise
+			*
+			* Desc: Checks if the automaton accepts word w using functions over sets of states 
+			*)
             method accept (w: word): bool =
                 						
                 let transition sts sy t =
@@ -330,10 +348,15 @@ struct
 			
 			
 			
-			(* gera todas as palavras de comprimento length aceites pelo automato
-			
-				Comecando pelo estado inicial, para um dado estado obtemos as transicoes a partir 
-			*)	
+			(** 
+			* This method generates all words of the given size which are accepted by the automaton
+			*
+			* Precondition -> length >= 0
+			*
+			* @param length:int -> size of all words to be generated
+			*
+			* @returns words -> the set of all words with size length
+			*)
 			method generate (length: int): words =
 			
 				let hasAcceptState sts accSts = Set.exists (fun st -> Set.belongs st accSts) sts in
@@ -353,13 +376,13 @@ struct
 				gen length representation.initialState representation.transitions representation.acceptStates
             
 
-            (* gera o conjunto de todos os estados alcancaveis por s - consultar slides da aula 15
-			
-				Comecando pelo conjunto formado unicamente pelo estado inicial, a partir de cada conjunto de estados 
-				obtemos o conjunto de todos os estados vizinhos de pelo menos um membro do conjunto anterior.
-				Terminamos quando nenhum novo estado for gerado, sendo que o resultado sera o conjunto de todos os 
-				estados ate entao gerados (incluindo o inicial)
-			
+            (** 
+			* This method generates all states that are reachable from the given state. A state is reachable from s if there 
+			* exists a word that starting on s will lead to that state (review definition of reachable from lecture a15 slide6)
+			* 
+			* @param s:state -> the given state 
+			*
+			* @returns states -> the set of all states reachable from s. 
 			*)
             method reachable (s:state): states =
 			
@@ -372,11 +395,14 @@ struct
 					
 					
 
-			(* gera o conjunto de todos os estados produtivos - consultar slides da aula 15
-			
-				Para cada estado do automato, e gerado o conjunto de todos os estados por eles alcancaveis,
-				um estado e considerado produtivo se pelo menos um dos seus estados gerados for de aceitacao
-				
+			(** 
+			* This method generates all productive states. A state is productive if there exists a word that will lead said state 
+			* to an acceptance state (review definition of productive from lecture a15 slide6)
+			* 
+			* @returns states -> the set of all productive states
+			*
+			* Desc: For each state of the automaton, this method applies the reachable method and checks if any of the resulting
+			* states is an acceptance state, and if it is then that state will belong to the resulting set of productive states
 			*)
             method productive: states =
 			
@@ -384,13 +410,16 @@ struct
 					Set.filter (fun st -> reachsAccSt st) representation.allStates
 
 			
-			(* verifica se o automato e determinista - consultar slides da aula 8
 			
-				Para cada estado, e gerado o conjunto de todos os estados alcancaveis por transicoes epsilon a partir dele,
-				o automato e determinista se para todos os conjunto de estados gerados, nao houver duas ou mais transicoes 
-				para o mesmo simbolo a partir de qualquer um ou mais dos seus elementos  
-				
-			*)	
+			(** 
+			* This method verifies if the automaton is deterministic (review definition of deterministic from lecture a8 slide12)
+			*
+			* @returns bool -> true if automaton is deterministic, false otherwise
+			*
+			* Desc: For each state s, this method checks if there exists 2 or more transitions with the same symbol from any  
+			* state belonging to closeempty of s, independently of the state which said transitions will lead to (review definition of closeempty 
+			* from lecture a13 slide12). If there is no state for which this property is true, then the automaton is deterministic 
+			*)
 			method isDeterministic: bool =
 			
 				let trnsFromSt st ts = Set.filter (fun (st1,sy,_) -> st1 = st && sy <> epsilon) ts in
@@ -405,25 +434,31 @@ struct
 										representation.allStates in
 					not hasNondeterSt
 				
-			(* converte o automato nao determinista num automato determinista - consultar slides da aula 13
-			
-				Aplicamos o algoritmo de determinizacao de acordo com a explicao dada nos slides da aula 13.
-				
+			(** 
+			* This method converts the non-deterministic automaton into its deterministic equivalent (review determinization algorithm 
+			* from lecture a13)
+			*
+			* @returns FiniteAutomaton.model -> the new deterministic automaton
+			*
+			* Desc: This methods follows the studied algorithm in lecture a13, if the automaton to determinize is already deterministic,
+			* the resulting automaton will be equal to the original
 			*)
 			method toDeterministic: FiniteAutomaton.model = 
 			
 				let move sts sy ts = Set.flatMap (fun st -> nextStates st sy ts ) sts in	
 				
+				(* generates the set of states reachable from the given state set though the given symbol *)
 				let newR oneR sy ts = 
 					let nxtSts = move oneR sy ts in
 					let clsempty = closeEmpty nxtSts ts in
 					Set.union nxtSts clsempty in
 					
-					
+				(* creates all transitions (given state set, a given symbol, states reachable from set through given symbol) *)
 				let rToTs r = 
 					let nxtTrans = Set.map (fun sy -> (r,sy,newR r sy representation.transitions)) representation.alphabet in
-					Set.filter (fun (_,_,z) -> not (z = Set.empty)) nxtTrans in
+						Set.filter (fun (_,_,z) -> not (z = Set.empty)) nxtTrans in
 					
+				(* applies previous function to all state sets until no new set is generated *)
 				let rec rsToTs stsD rD trnsD alph = 
 					let nxtTs = Set.flatMap (fun stSet -> rToTs stSet ) rD in
 					let nxtRs = Set.map (fun (_,_,z) -> z) nxtTs in
@@ -431,10 +466,10 @@ struct
 					if newRs = Set.empty then (Set.union trnsD nxtTs) else 
 						rsToTs (Set.union newRs stsD) newRs (Set.union trnsD nxtTs) alph  in	
 				
-				let r1 = Set.add representation.initialState
-						(closeEmpty [representation.initialState] representation.transitions) in
 				
-								
+				let r1 = closeEmpty [representation.initialState] representation.transitions in
+				
+				(* all transitions of the new deterministic automaton *)				
 				let trnsD = rsToTs [r1] [r1] Set.empty representation.alphabet in
 								
 				let tds = Set.map (fun (a,b,c) -> (fuseStates a, b, fuseStates c)) trnsD in
@@ -457,31 +492,29 @@ struct
 					allStates = newAllSts; initialState = newInitialState;	transitions = tds; acceptStates = newAccSts} )
 				
 			
-			(* obtem todos os estados do automato que sejam uteis 
-			
-				O resultado e igual a intersecao entre o conjunto de todos os estados produtivos, e o conjunto de todos
-				os estados alcancaveis a partir do estado inicial 
-				
+			(** 
+			* This method generates the set of all useful states (review definition of useful state from lecture a15 slide6)
+			*
+			* @returns states -> the set of all useful states
 			*)
 			method getUsefulStates: states =
 				Set.inter self#productive (self#reachable representation.initialState)
 				
 				
-			(* obtem todos os estados do automato que nao sejam uteis 
-			
-				O resultado e igual a diferenca entre o conjunto de todos os estados uteis e o conjunto 
-				de todos os estados do automato
-				
+			(** 
+			* This method generates the set of all non useful states (review definition of useful state from lecture a15 slide6)
+			*
+			* @returns states -> the set of all non useful states
 			*)
 			method getUselessStates: states =
 				Set.diff representation.allStates self#getUsefulStates
 				
 			
-			(* verifica se todos os estados do automato sao uteis 
 			
-				E verdade que todos os estados do automato sao uteis se o conjunto de todos os estados desse automato 
-				for igual ao conjunto de todos os seus estados uteis 
-				
+			(** 
+			* This method verifies if all the automaton's states are useful (review definition of useful state from lecture a15 slide6)
+			*
+			* @returns bool -> true if all states of the automaton are useful, false otherwise
 			*)
 			method areAllStatesUseful: bool = 
 			
@@ -491,13 +524,13 @@ struct
 					usfSts = rep.allStates 
 				
 			
-			(* devolve um automato equivalente mas sem estados inuteis, sem transicoes que envolvam esses estados, e sem 
-			   simbolos do alfabeto que so aparecam nessas transicoes 
-			
-				O novo automato e criado ao filtrar todos os seus estados que nao sejam uteis, ao filtrar todas
-				as transicoes de ou para algum estado nao util, e ao filtrar do alfabeto todos os simbolos que so aparecam 
-				em transicoes envolvendo estados nao uteis
-				
+			(** 
+			* This method creates the equivalent automaton where all states are useful
+			*
+			* @returns FiniteAutomaton.model -> the new equivalent automaton where all states are useful
+			*
+			* Desc: The new automaton is created by eliminating from the original automaton all its non useful states, all transitions 
+			* that have a non useful state, and all symbols of the alphabet that only appear in said transitions
 			*)
 			method cleanUselessStates: FiniteAutomaton.model =
 			
@@ -514,12 +547,14 @@ struct
 					initialState = representation.initialState;	transitions = usfTrs; acceptStates = newAccSts} )
 					
 					
-			(* verifica se o automato e minimo - consultar slides da aula 15
-			
-				O automato e minimo se ao lhe aplicarmos o algoritmo de minimizacao obtemos 
-				um automato identico ao original
-				
-			*)	
+			(** 
+			* This method verifies if the automaton is minimal (review definition of minimal automaton from lecture a15)
+			*
+			* @returns boolean -> true if automaton is minimal, false otherwise
+			*
+			* Desc: The given automaton is considered minimal if the result of minimizing it is an automaton with the same      
+			* number of states
+			*)
 			method isMinimized: bool = 
 			
 				let fa = self#minimize in
@@ -527,12 +562,12 @@ struct
 					Set.size representation.allStates = Set.size rep.allStates
 				
 			
-			(* converte o automato no seu automato minimo equivalente - consultar slides da aula 15
-			
-				Aplicamos o algoritmo de minimizacao de acordo com a explicao dada nos slides da aula 15.
-				Antes de executarmos este metodo, devemos verificar se o automato nao tem estados nao uteis 
-				e se ele e determinista
-				
+			(** 
+			* This method minimizes the automaton (review algorithm from lecture a15)
+			*
+			* @returns FiniteAutomaton.model -> the new minimal equivalent automaton 
+			*
+			* Desc: The given automaton is minimized according to the process described in lecture a15.   
 			*)
 			method minimize: FiniteAutomaton.model = 					
 				
@@ -551,7 +586,7 @@ struct
 				
                 let stsXSts = Set.combinations rep.allStates rep.allStates in		
 
-				
+				(* generates all pairs of states that can reach the pair (st1,st2) through a transition with symbol sy *)
 				let reachingSts st1 st2 sy p = 
 					let t1 = Set.filter (fun (_,y,z) -> z = st1 && y = sy) rep.transitions in
 					let t2 = Set.filter (fun (_,y,z) -> z = st2 && y = sy) rep.transitions in
@@ -569,26 +604,27 @@ struct
                 let dist = aped distI distA in
 				
 				
-				(* given states a b c d generates (a,b) (a,c) (a,d) (b,c) (b,d) (c,d) *)
+				(* given for example states a b c d generates (a,b) (a,c) (a,d) (b,c) (b,d) (c,d) *)
 				let rec halfCombs sts = 
 					match sts with 
 						[] -> []
 						|x::xs -> Set.union (Set.combinations [x] xs) (halfCombs xs) in
 				let halfTriang = halfCombs rep.allStates in				
 				
-				(* substitutes state st for its leftmost equivalent state *)
+				(* given set of equivalent states dicti, substitutes state st for its leftmost equivalent state according to dicti *)
 				let rec translate st dicti = 
 					match dicti with
 						[] -> st
 						|(eq1,eq2)::xs -> if eq2 = st then eq1 else translate st xs in				
 				
-				
+				(* the set of equivalent state pairs are those not present in the set of distinct state pairs *)
 				let equiv = Set.filter ( fun (a,b) -> not (Set.belongs (a,b) dist) && 
-														not (Set.belongs (b,a) dist) ) halfTriang in				
+														not (Set.belongs (b,a) dist) ) halfTriang in		
+														
 				let eq = Set.map (fun (a,b) -> b) equiv in
 				let newSts = Set.diff rep.allStates eq in
 				let newInitSt = translate rep.initialState equiv in
-				let newAccSts = Set.inter rep.acceptStates newSts in				 
+				let newAccSts = Set.inter rep.acceptStates newSts in
 				let newTrans = Set.map (fun (x,y,z) -> (translate x equiv,y,translate z equiv) ) rep.transitions in
 				
 				
