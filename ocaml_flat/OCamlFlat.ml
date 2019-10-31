@@ -1,6 +1,6 @@
 (* OCamlFlat.ml - AMD/2019 *)
 
-open OCamlFlatSupport;;
+open OCamlFlatSupport
 
 (* use "OCamlFlatSupport.ml";; *)
 
@@ -606,7 +606,7 @@ and (*module*) FiniteAutomatonTests : sig
 end
  =
 struct
-	let active = true
+	let active = false
 
 	let test0 () =
 		let m = Model.loadModel "fa_abc.json" in
