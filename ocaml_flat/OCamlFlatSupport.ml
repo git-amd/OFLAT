@@ -57,10 +57,13 @@ module Util =  struct
 	let header (str: string) =
 		println "----------" ; println str
 
+	let printAlphabet (alf:char list) =
+	    List.iter (fun x -> print_char x; print_string ", ") alf;
+		println " "
+		
 	let printStates (st:string list) =
 	    List.iter (fun x -> print_string x; print_string ", ") st;
 		println " "
-
 		
 	let printTransition (a:string) (b:char) (c:string) = 
 		print_string "("; print_string a; print_string ", ";
@@ -116,17 +119,20 @@ module Set = struct
 	let empty: 'a = []
 	let size (s: 'a list): int = List.length s
 	let belongs (v: 'a) (s: 'a t): bool = List.mem v s
-	let clear (l: 'a list): 'a t = List.sort_uniq compare l
+	let clear (l: 'a list): 'a t = List.sort_uniq compare l	 
+	let make (l: 'a list): 'a t = clear l	 
 	let union (s1: 'a t) (s2: 'a t): 'a t = clear (s1 @ s2)
 	let add (v: 'a) (s: 'a t): 'a t = clear (v :: s)
 	let inter (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> belongs x s2) s1
 	let diff (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> not (belongs x s2)) s1
 	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun x -> belongs x s2) s1
 
+	
 	let map f s = clear (List.map f s)
 	let filter f s = List.filter f s
 	let for_all f s = List.for_all f s
 	let exists f s = List.exists f s
+	let flatten ss = clear (List.flatten ss)
 	let flatMap f s = clear (List.flatten (List.map f s))
 	let iter f s = List.iter f s
 	let partition f s = let (a, b) = List.partition f s in (clear a, clear b)
@@ -282,7 +288,7 @@ module RegExpSyntax = struct
 	type t =
 		| Plus of t * t
 		| Seq of t * t
-		| Times of t
+		| Star of t
 		| Symb of char
 		| Empty
 		| Zero
@@ -318,7 +324,7 @@ module RegExpSyntax = struct
 	and parse_factor () =
 		let a = parse_atom () in
 			match curr() with
-				| '*' -> skip(); (Times a)
+				| '*' -> skip(); (Star a)
 				| _ -> a
 
 	and parse_atom () =
@@ -354,7 +360,7 @@ module RegExpSyntax = struct
 					(if n > 1 then "(" else "") ^
 					toStringN 1 l ^ toStringN 1 r
 					^ (if n > 1 then ")" else "")
-			| Times(r) ->
+			| Star(r) ->
 					toStringN 2 r ^ "*"
 			| Symb(c) -> String.make 1 c
 			| Empty -> "()"

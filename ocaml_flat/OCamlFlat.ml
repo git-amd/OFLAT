@@ -1,7 +1,6 @@
 (* OCamlFlat.ml - AMD/2019 *)
 
 open OCamlFlatSupport  
-
 (*#use "OCamlFlatSupport.ml";;*)
 
 (* --- Configuration --- *)
@@ -140,8 +139,9 @@ and (*module*) FiniteAutomaton : sig
 			
 			method tracing : unit
 			method accept : word -> bool
-			method accept2 : word -> bool
+			method acceptBreadthFirst: word -> bool
 			method generate : int -> words
+			method generateUntil : int -> words
 			method reachable : state -> states
 			method productive : states
 
@@ -150,8 +150,9 @@ and (*module*) FiniteAutomaton : sig
 			method getUsefulStates : states
 			method getUselessStates : states
 			method areAllStatesUseful: bool
-			method cleanUselessStates: FiniteAutomaton.model
+			method cleanUselessStates: FiniteAutomaton.model			
 			method isMinimized : bool
+			method equivalencePartition: states set
 			method minimize : FiniteAutomaton.model
 			method toRegularExpression : RegularExpression.model
 
@@ -264,6 +265,7 @@ struct
 				(* does initial state belong to the set of all states *)
 				let validInitSt = Set.belongs representation.initialState representation.allStates in
 				
+				
 				(* are all accepted states members of all states *)
 				let validAccSts = Set.subset representation.acceptStates representation.allStates in				
 					
@@ -307,12 +309,14 @@ struct
 			* Desc: Checks if the automaton accepts word w using configurations (that is, pairs formed by a state and 
 			* a remaining word) and a breadth-first approach as to deal with potential non-termination 
 			*)
-			method accept2 (w: word): bool =
+			method acceptBreadthFirst(w: word): bool =
 						    
                 let rec acc cf t sta =
                     match cf with
                         [] -> false
-                        |(st,[])::ls -> List.mem st sta || acc ls t sta
+                        |(st,[])::ls -> 
+							let accepts = (Set.inter (closeEmpty [st] t) sta) <> Set.empty in
+								accepts || acc ls t sta
                         |(st,x::xs)::ls ->
                             let n = nextStates st x t in
                             let cfn = List.map (fun c -> (c,xs)) n in
@@ -332,19 +336,19 @@ struct
 			* Desc: Checks if the automaton accepts word w using functions over sets of states 
 			*)
             method accept (w: word): bool =
-                						
+			                						
                 let transition sts sy t =
                     let nsts = Set.flatMap (fun st -> nextStates st sy t) sts in
                         Set.union nsts (closeEmpty nsts t) in
 						
-                let rec accept2X sts w t =
+                let rec acceptX sts w t =
                     match w with
                         [] -> (Set.inter sts representation.acceptStates) <> []
                         |x::xs -> let nextSts = transition sts x t in
-							nextSts <> Set.empty && accept2X nextSts xs t in
+							nextSts <> Set.empty && acceptX nextSts xs t in
 						
                 let i = closeEmpty [representation.initialState] representation.transitions in
-                    accept2X i w representation.transitions
+                    acceptX i w representation.transitions
 			
 			
 			
@@ -375,6 +379,27 @@ struct
 				in
 				gen length representation.initialState representation.transitions representation.acceptStates
             
+			
+			method generateUntil (length: int): words =
+			
+				let hasAcceptState sts accSts = Set.exists (fun st -> Set.belongs st accSts) sts in
+				let nxtNonEmptyTrns st ts = Set.filter (fun (a,b,_) -> a = st && b <> epsilon) ts in
+			
+				let rec gen n state transitions accSts =	
+				
+					let clsEmpty = (closeEmpty [state] transitions) in					
+					if n = 0 then 
+						if hasAcceptState clsEmpty accSts then [[]] else [] 
+					
+					else						
+						let trnsSet = Set.flatMap (fun st -> nxtNonEmptyTrns st transitions ) clsEmpty in
+						let genX sy st l = Util.addAll sy (gen (l-1) st transitions accSts) in
+						let lenOneOrMore = Set.flatMap (fun (_,sy,st) -> genX sy st n) trnsSet in
+						let lenZero = if hasAcceptState clsEmpty accSts then [[]] else [] in
+							Set.union lenOneOrMore lenZero
+				in
+				gen length representation.initialState representation.transitions representation.acceptStates
+			
 
             (** 
 			* This method generates all states that are reachable from the given state. A state is reachable from s if there 
@@ -538,8 +563,9 @@ struct
                 let usfTrs = Set.filter (fun (a,_,c) -> Set.belongs a usfSts &&
 														Set.belongs c usfSts) 
 								representation.transitions in
-								
-                let usfAlf = Set.map (fun (_,a,_) -> a) usfTrs in
+					
+				let alf = transitionGet2 usfTrs in
+				let usfAlf = Set.diff alf [epsilon] in
 				let newAccSts = Set.inter representation.acceptStates usfSts in
 				let usfSts = Set.add representation.initialState usfSts in
 				
@@ -562,16 +588,15 @@ struct
 					Set.size representation.allStates = Set.size rep.allStates
 				
 			
-			(** 
-			* This method minimizes the automaton (review algorithm from lecture a15)
-			*
-			* @returns FiniteAutomaton.model -> the new minimal equivalent automaton 
-			*
-			* Desc: The given automaton is minimized according to the process described in lecture a15.   
-			*)
-			method minimize: FiniteAutomaton.model = 					
+			
+			method equivalencePartition: states set =
+			
+				let fa = self#toDeterministic in
 				
-				let rep = self#representation in	
+				let fa2 = fa#cleanUselessStates in
+				
+				
+				let rep = fa2#representation in	
 								
                 let (inF, notF) = Set.partition (fun x -> Set.belongs x rep.acceptStates) rep.allStates in				
                 let distI1 = Set.combinations inF notF in
@@ -603,7 +628,89 @@ struct
 					
                 let dist = aped distI distA in
 				
+								
+				(* given for example states a b c d generates (a,b) (a,c) (a,d) (b,c) (b,d) (c,d) *)
+				let rec halfCombs sts = 
+					match sts with 
+						[] -> []
+						|x::xs -> Set.union (Set.combinations [x] (x::xs)) (halfCombs xs) in
+				let halfTriang = halfCombs rep.allStates in				
 				
+				(* given set of equivalent states dicti, substitutes state st for its leftmost equivalent state according to dicti *)
+				let rec translate st dicti = 
+					match dicti with
+						[] -> st
+						|(eq1,eq2)::xs -> if eq2 = st then eq1 else translate st xs in				
+				
+				(* the set of equivalent state pairs are those not present in the set of distinct state pairs *)
+				let equiv = Set.filter ( fun (a,b) -> not (Set.belongs (a,b) dist) && 
+														not (Set.belongs (b,a) dist) ) halfTriang in	
+				
+				
+				let hasAny st1 st2 sta stb = (translate st1 equiv) = sta || (translate st2 equiv) = sta 
+											|| (translate st1 equiv) = stb || (translate st2 equiv) = stb in
+				
+				
+				let rec agroup eq =
+					match eq with
+						[] -> []
+						|(a,b)::ls ->   let (part1,part2) = Set.partition (fun (x,y) -> hasAny x y a b) eq in
+										let gRemain = Set.flatMap (fun (c,d) -> [c;d]) part1 in
+											(Set.union [a;b] gRemain)::(agroup part2)
+				in
+				
+				agroup equiv
+				
+				
+			
+			
+			(** 
+			* This method minimizes the automaton (review algorithm from lecture a15)
+			*
+			* @returns FiniteAutomaton.model -> the new minimal equivalent automaton 
+			*
+			* Desc: The given automaton is minimized according to the process described in lecture a15.   
+			*)
+			method minimize: FiniteAutomaton.model = 					
+				
+				let fa = self#toDeterministic in
+				
+				let fa2 = fa#cleanUselessStates in
+				
+				
+				let rep = fa2#representation in	
+								
+                let (inF, notF) = Set.partition (fun x -> Set.belongs x rep.acceptStates) rep.allStates in				
+                let distI1 = Set.combinations inF notF in
+								
+				let hasTransMulti sts sy ts = Set.partition (fun st -> hasTrans st sy ts) sts in				
+				let distI2 = Set.flatMap (fun sy -> Util.distrib2 Set.combinations 
+													(hasTransMulti rep.allStates sy rep.transitions)) 
+								rep.alphabet in
+				
+				
+                let distI = Set.union distI1 distI2 in		
+				
+                let stsXSts = Set.combinations rep.allStates rep.allStates in		
+
+				(* generates all pairs of states that can reach the pair (st1,st2) through a transition with symbol sy *)
+				let reachingSts st1 st2 sy p = 
+					let t1 = Set.filter (fun (_,y,z) -> z = st1 && y = sy) rep.transitions in
+					let t2 = Set.filter (fun (_,y,z) -> z = st2 && y = sy) rep.transitions in
+					let s1 = transitionGet1 t1 in
+					let s2 = transitionGet1 t2 in
+						Set.diff (Set.combinations s1 s2) p in
+								
+				let findAR p q = Set.flatMap (fun (a,b) -> Set.flatMap (fun sy -> reachingSts a b sy p) rep.alphabet) q in
+				
+				let distA = findAR distI distI in
+				
+                let rec aped p q = if (q = Set.empty || (Set.union p q) = stsXSts) then Set.union p q
+                    else aped (Set.union p q) (findAR (Set.union p q) q ) in
+					
+                let dist = aped distI distA in
+				
+								
 				(* given for example states a b c d generates (a,b) (a,c) (a,d) (b,c) (b,d) (c,d) *)
 				let rec halfCombs sts = 
 					match sts with 
@@ -619,8 +726,9 @@ struct
 				
 				(* the set of equivalent state pairs are those not present in the set of distinct state pairs *)
 				let equiv = Set.filter ( fun (a,b) -> not (Set.belongs (a,b) dist) && 
-														not (Set.belongs (b,a) dist) ) halfTriang in		
-														
+														not (Set.belongs (b,a) dist) ) halfTriang in	
+				
+									
 				let eq = Set.map (fun (a,b) -> b) equiv in
 				let newSts = Set.diff rep.allStates eq in
 				let newInitSt = translate rep.initialState equiv in
@@ -645,70 +753,199 @@ struct
 	let active = false
 
 	let test0 () =
-		let m = Model.loadModel "fa_abc.json" in
+		let m = Model.loadModel "test automaton/fa_abc.json" in
 			let j = m#toJSon in
 				JSon.show j
 
 	let test1 () =
-		let fa = new FiniteAutomaton.model (File "fa_abcd.json") in
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_abc.json") in
 			let j = fa#toJSon in
 				JSon.show j
 
-	let test2 () =
-  		let fa = new FiniteAutomaton.model (File "fa_abc3.json") in
+	let testAcceptBF () =
+        let fa = new FiniteAutomaton.model (File "test automaton/fa_accept.json") in
+          	if fa#acceptBreadthFirst [] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['a';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['b';'a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+			if fa#acceptBreadthFirst ['a';'b';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['a';'b';'a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['b';'a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['b';'a';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+			Util.println ""
+
+	let testAcceptBF2 () =
+        let fa = new FiniteAutomaton.model (File "test automaton/fa_accept2.json") in
+          	if fa#acceptBreadthFirst [] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['a';'b';'a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#acceptBreadthFirst ['c'] then Util.println "word was accepted" else Util.println "word was not accepted";
+			Util.println ""
+				
+	let testAccept () =
+        let fa = new FiniteAutomaton.model (File "test automaton/fa_accept.json") in
+          	if fa#accept [] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['a';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['b';'a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+			if fa#accept ['a';'b';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['a';'b';'a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['b';'a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['b';'a';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
+			Util.println ""
+
+	let testAccept2 () =
+        let fa = new FiniteAutomaton.model (File "test automaton/fa_accept2.json") in
+          	if fa#accept [] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['a'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['a';'b';'a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
+          	if fa#accept ['c'] then Util.println "word was accepted" else Util.println "word was not accepted";
+			Util.println ""
+			
+			
+	
+	let testGenerate () =
+  		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate.json") in
 			Util.println "generated words size 0:"; Util.printWordList (fa#generate 0 );
   		    Util.println "generated words size 1:"; Util.printWordList (fa#generate 1 );
-  		    Util.println "generated words size 2:"; Util.printWordList (fa#generate 2 );
-  		    Util.println "generated words size 3:"; Util.printWordList (fa#generate 100 )
+  		    Util.println "generated words size 2:"; Util.printWordList (fa#generate 2 );			
+  		    Util.println "generated words size 100:"; Util.printWordList (fa#generate 100 );
+			Util.println ""
+			
+	let testGenerate2 () =
+  		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate2.json") in
+			Util.println "generated words size 0:"; Util.printWordList (fa#generate 0 );
+  		    Util.println "generated words size 1:"; Util.printWordList (fa#generate 1 );
+  		    Util.println "generated words size 2:"; Util.printWordList (fa#generate 2 );	
+			Util.println "generated words size 3:"; Util.printWordList (fa#generate 3 );
+			Util.println "generated words size 4:"; Util.printWordList (fa#generate 4 );
+  		    Util.println "generated words size 18:"; Util.printWordList (fa#generate 18 );
 
-    let test3 () =
-      		let fa = new FiniteAutomaton.model (File "fa_abc3.json") in
+			Util.println ""
+			
+	let testGenerate3 () =
+  		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate3.json") in
+			Util.println "generated words size 0:"; Util.printWordList (fa#generate 0 );
+  		    Util.println "generated words size 1:"; Util.printWordList (fa#generate 1 );
+  		    Util.println "generated words size 10:"; Util.printWordList (fa#generate 10 );	
+			Util.println "generated words size 50:"; Util.printWordList (fa#generate 50 );
+			Util.println "generated words size 100:"; Util.printWordList (fa#generate 100 );
+			Util.println "generated words size 1000:"; Util.printWordList (fa#generate 1000 );
+			Util.println ""
+			
+	let testGenerate4 () =
+  		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate4.json") in
+			Util.println "generated words size 0:"; Util.printWordList (fa#generate 0 );
+  		    Util.println "generated words size 1:"; Util.printWordList (fa#generate 1 );
+  		    Util.println "generated words size 10:"; Util.printWordList (fa#generate 10 );
+			Util.println "generated words size 100:"; Util.printWordList (fa#generate 100 );				
+			Util.println ""
+			
+	let testGenerateUntil () =
+  		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate.json") in
+			Util.println "generated words size 5:"; Util.printWordList (fa#generateUntil 5 );
+			Util.println "";
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate2.json") in
+			Util.println "generated words size 5:"; Util.printWordList (fa#generateUntil 5 );
+			Util.println "";
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate3.json") in
+			Util.println "generated words size 5:"; Util.printWordList (fa#generateUntil 5 );
+			Util.println "";
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_generate4.json") in
+			Util.println "generated words size 5:"; Util.printWordList (fa#generateUntil 5 );
+			Util.println ""
+			
+
+    let testReachable () =
+      		let fa = new FiniteAutomaton.model (File "test automaton/fa_reach.json") in
+			let fa2 = new FiniteAutomaton.model (File "test automaton/fa_reach2.json") in
 			let start = fa#representation.initialState in
-      		    Util.println "reachable states:"; Util.printStates (fa#reachable start ); Util.println " "
+			let start2 = fa2#representation.initialState in
+      		    Util.println "reachable states:"; Util.printStates (fa#reachable start ); Util.println " ";
+				Util.println "reachable states:"; Util.printStates (fa2#reachable start2 ); Util.println " "
 
-    let test4 () =
-          		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
-          		    Util.println "productive states:"; Util.printStates (fa#productive ); Util.println " "
-
-    let test5 () =
-          		let fa = new FiniteAutomaton.model (File "fa_isDeter.json") in
-				let fa2 = new FiniteAutomaton.model (File "fa_isDeter2.json") in
-				let fa3 = new FiniteAutomaton.model (File "fa_abc.json") in
-          		    if fa#isDeterministic then
-          		        Util.println "automata is deterministic" else Util.println "automata is non-deterministic";
-					if fa2#isDeterministic then
-          		        Util.println "automata is deterministic" else Util.println "automata is non-deterministic";
-					if fa3#isDeterministic then
-          		        Util.println "automata is deterministic" else Util.println "automata is non-deterministic"
-
-
-    let test6 () =
-          		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
-          		   if fa#accept ['~'] then Util.println "word was accepted" else Util.println "word was not accepted" ;
-          		   if fa#accept [] then Util.println "word was accepted" else Util.println "word was not accepted";
-          		   if fa#accept ['a'] then Util.println "word was accepted" else Util.println "word was not accepted";
-          		   if fa#accept ['a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
-          		   if fa#accept ['a';'b';'a';'d'] then Util.println "word was accepted" else Util.println "word was not accepted";
-          		   if fa#accept ['c'] then Util.println "word was accepted" else Util.println "word was not accepted"
-
-	let test7 () =
-		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
-			let mfa = fa#toDeterministic in
-			let j = mfa#toJSon in
-				JSon.show j
+    let testProductive () =
+        let fa = new FiniteAutomaton.model (File "test automaton/fa_productive.json") in
+		let fa2 = new FiniteAutomaton.model (File "test automaton/fa_productive2.json") in
+      		Util.println "productive states:"; Util.printStates (fa#productive); Util.println " ";
+			Util.println "productive states:"; Util.printStates (fa2#productive); Util.println " "
 			
-	let test8 () =
-		let fa = new FiniteAutomaton.model (File "fa_minimize2.json") in
-			let mfa = fa#minimize in
-			let j = mfa#toJSon in
-				JSon.show j
+	let testClean () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_clean.json") in
+		let fa2 = new FiniteAutomaton.model (File "test automaton/fa_clean2.json") in
+		let mfa = fa#cleanUselessStates in
+		let mfa2 = fa2#cleanUselessStates in
+		let j = mfa#toJSon in
+		let j2 = mfa2#toJSon in
+			JSon.show j; Util.println " ";
+			JSon.show j2; Util.println " "
 			
 
+    let testIsDeterministic () =
+        let fa = new FiniteAutomaton.model (File "test automaton/fa_isDeter.json") in
+		let fa2 = new FiniteAutomaton.model (File "test automaton/fa_isDeter2.json") in
+		let fa3 = new FiniteAutomaton.model (File "test automaton/fa_isDeter3.json") in
+          	if fa#isDeterministic then
+          		Util.println "automata is deterministic" else Util.println "automata is non-deterministic";
+			if fa2#isDeterministic then
+          		Util.println "automata is deterministic" else Util.println "automata is non-deterministic";
+			if fa3#isDeterministic then
+          		Util.println "automata is deterministic" else Util.println "automata is non-deterministic"
+
+
+    
+	let testToDeterministic () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_toDeter.json") in
+		let mfa = fa#toDeterministic in
+		let j = mfa#toJSon in		
+			JSon.show j;			
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_isDeter.json") in
+		let mfa = fa#toDeterministic in
+		let j = mfa#toJSon in
+			JSon.show j
+			
+			
+	let testEquivalence () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_minimize2.json") in
+		let s = fa#equivalencePartition in
+			List.iter (fun s -> print_string "set: "; Util.printStates s) s 
+			
+			
+	let testMinimize () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_minimize.json") in
+		let mfa = fa#minimize in
+		let j = mfa#toJSon in
+			JSon.show j
+	
+	let testMinimize2 () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_minimize2.json") in
+		let mfa = fa#minimize in
+		let j = mfa#toJSon in
+			JSon.show j
+	
+	let testMinimize3 () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_minimize3.json") in
+		let mfa = fa#minimize in
+		let j = mfa#toJSon in
+			JSon.show j
+			
+	let testMinimize4 () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_minimize4.json") in
+		let mfa = fa#minimize in
+		let j = mfa#toJSon in
+			JSon.show j
+			
+		
 
 	let runAll =
 		if active then (
 			Util.header "FiniteAutomatonTests";
-			test8 () 
+			testEquivalence ();
+			testMinimize2 ()
 		)
 end
 
@@ -732,6 +969,9 @@ and (*module*) RegularExpression : sig
 			method accept : word -> bool
 			method generate : int -> words
 			method tracing : unit
+			
+			method alphabet : symbols
+			method quasiLanguage : words 
 
 			method toFiniteAutomaton : unit
 
@@ -767,10 +1007,68 @@ struct
 				]
 
 			method validate = ( 
+				
+				(*
+				let representation = RegExpSyntax.parse "(((xx+ut)+(aaa+dss+ghf)+(xx+uu))ee)+bgc*+(jgg+bgcd)" in 
+				 
+				let rec lang rep = 
+					match rep with 
+						| RegExpSyntax.Plus(l, r) -> print_string "pls: "; print_string (RegExpSyntax.toString l); print_string ", ";
+						print_string (RegExpSyntax.toString r); Util.println ""; Set.union (lang l) (lang r)
+						| RegExpSyntax.Seq(l, r) -> print_string "seq: "; print_string (RegExpSyntax.toString l); print_string ", ";
+						print_string (RegExpSyntax.toString r); Util.println ""; Set.union (lang l) (lang r)
+						| RegExpSyntax.Star(r) -> print_string "str: "; print_string (RegExpSyntax.toString r); Util.println ""; (lang r)
+						| RegExpSyntax.Symb(c) -> Set.make [c]
+						| RegExpSyntax.Empty -> []
+						| RegExpSyntax.Zero -> []
+				in
+				let a = lang representation in
+				()
+				*)
 			)
 
-			method accept (w: word): bool = true
+			
+			method accept (w: word): bool = 
+			
+				false
+				  
+			
+			
 			method generate (length: int): words = []
+				
+				
+			(* generates the alphabet of all symbols in the regular expression *)					
+			method alphabet: symbols =
+						
+							
+				let rec alf rep = 
+					match rep with 
+						| RegExpSyntax.Plus(l, r) -> Set.union (alf l) (alf r) 
+						| RegExpSyntax.Seq(l, r) -> Set.union (alf l) (alf r)
+						| RegExpSyntax.Star(r) -> alf r
+						| RegExpSyntax.Symb(c) -> Set.make [c]
+						| RegExpSyntax.Empty -> []
+						| RegExpSyntax.Zero -> []
+				in
+					alf representation
+			
+			(* generates the language of the regular expression for when klenne is always zero 	*)				
+			method quasiLanguage: words =
+										
+				let seqConcat aset bset = Set.flatMap (fun s1 -> Set.map (fun s2 -> s1@s2) bset) aset in
+						
+				let rec lang rep = 
+					match rep with 
+						| RegExpSyntax.Plus(l, r) -> Set.union (lang l) (lang r)	
+						| RegExpSyntax.Seq(l, r) ->	 seqConcat (lang l) (lang r)											
+						| RegExpSyntax.Star(r) -> [[]]
+						| RegExpSyntax.Symb(c) -> [Set.make [c]]
+						| RegExpSyntax.Empty -> []
+						| RegExpSyntax.Zero -> []
+				in
+					lang representation 
+				
+			
 			method tracing: unit = ()
 
 			method toFiniteAutomaton = ()
@@ -786,17 +1084,42 @@ struct
 	let active = false
 
 	let test0 () =
-		let m = Model.loadModel "re_abc.json" in
+		let m = Model.loadModel "test regEx/re_abc.json" in
 			let j = m#toJSon in
 				JSon.show j
+				
+				
+	let testAccept () =
+		let m = Model.loadModel "re_abc.json" in
+			if m#accept ['a';'a'] then Util.println "cool" else Util.println "uncool" 
+			
+	let testAlphabet () =
+		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
+			Util.println "alphabet: "; Util.printAlphabet (re#alphabet);
+			Util.println ""
+	
+	let testQuasiLang () =
+		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
+			let ws = re#quasiLanguage in
+			Util.printWordList ws
+			
+			
+				
+	let testGenerateLanguage () =
+		let fa = new RegularExpression.model (File "test regEx/re_abc.json") in
+			Util.println "generated words size 0:"; Util.printWordList (fa#generate 0 );
+  		    Util.println "generated words size 1:"; Util.printWordList (fa#generate 1 );
+  		    Util.println "generated words size 2:"; Util.printWordList (fa#generate 2 );			
+  		    Util.println "generated words size 100:"; Util.printWordList (fa#generate 100 );
+			Util.println ""
 
 	let test1 () =
-		let re = new RegularExpression.model (File "re_abc.json") in
+		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
 			let j = re#toJSon in
 				JSon.show j
 
 	let test2 () =
-		let fa = new FiniteAutomaton.model (File "fa_abc.json") in
+		let fa = new FiniteAutomaton.model (File "test Automaton/fa_abc.json") in
 		let r = fa#toRegularExpression in
 		let j = r#toJSon in
 			JSon.show j
@@ -804,9 +1127,7 @@ struct
 	let runAll =
 		if active then (
 			Util.header "RegularExpressionTests";
-			test0 ();
-			test1 ();
-			test2 ()
+			testQuasiLang ()
 		)
 end
 
