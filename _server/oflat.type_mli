@@ -1,0 +1,162 @@
+val __eliom__compilation_unit_id__pAMgVd : string
+module OFlat_app : Eliom_registration.APP
+val main_service :
+  (unit, unit, Eliom_service.get, Eliom_service.att, Eliom_service.non_co,
+   Eliom_service.non_ext, Eliom_service.reg, [ `WithoutSuffix ], unit, 
+   unit, Eliom_service.non_ocaml)
+  Eliom_service.t
+val script_uri : Eliom_content.Html.D.uri
+val script_uri1 : Eliom_content.Html.D.uri
+val script_uri5 : Eliom_content.Html.D.uri
+val script_uri7 : Eliom_content.Html.D.uri
+val lincs_service :
+  [> [> Html_types.div ] Html_types.a ] Eliom_content.Html.D.elt
+val factor_service :
+  [> [> Html_types.div ] Html_types.a ] Eliom_content.Html.D.elt
+val tezos_service :
+  [> [> Html_types.div ] Html_types.a ] Eliom_content.Html.D.elt
+val _eliom_fragment_pAMgVd1 : unit Eliom_client_value.t option ref
+val _eliom_escaped_ident_1 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val fileWidgetMake : unit -> [> Html_types.input ] Eliom_content.Html.D.elt
+val _eliom_fragment_pAMgVd26 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd25 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd24 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd23 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd22 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd21 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd20 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_12 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_escaped_ident_11 :
+  [> Html_types.textarea ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd19 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_10 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd18 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_9 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd17 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_8 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd16 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_7 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd15 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd14 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd13 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd12 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd11 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd10 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_6 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd9 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_5 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd8 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_4 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd7 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd6 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd5 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd4 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd3 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd2 : unit Eliom_client_value.t option ref
+val _eliom_escaped_ident_3 :
+  [> Html_types.div ] Eliom_content.Html.D.elt option ref
+val _eliom_escaped_ident_2 :
+  [> Html_types.div ] Eliom_content.Html.D.elt option ref
+module HtmlPage :
+  sig
+    val hiddenBox2 :
+      [< Html_types.div_content_fun ] Eliom_content.Html.D.elt ->
+      [> Html_types.div ] Eliom_content.Html.D.elt
+    val mywidget :
+      string Eliom_content.Html.D.wrap ->
+      [< Html_types.div_content_fun ] Eliom_content.Html.D.elt ->
+      Html_types.text Eliom_content.Html.D.wrap ->
+      [> Html_types.div ] Eliom_content.Html.D.elt
+    val upload : [> Html_types.div ] Eliom_content.Html.D.elt
+    val inputBox : [> Html_types.input ] Eliom_content.Html.D.elt
+    val generate : [> Html_types.div ] Eliom_content.Html.D.elt
+    val evaluate : [> Html_types.div ] Eliom_content.Html.D.elt
+    val verify : [> Html_types.div ] Eliom_content.Html.D.elt
+    val answerBox : [> Html_types.input ] Eliom_content.Html.D.elt
+    val zz : [> Html_types.textarea ] Eliom_content.Html.D.elt
+    val generateWords_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val words : [> Html_types.button ] Eliom_content.Html.D.elt
+    val double_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val double : [> Html_types.button ] Eliom_content.Html.D.elt
+    val toDeterministic_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val deter : [> Html_types.button ] Eliom_content.Html.D.elt
+    val toLeft_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val toLeft : [> Html_types.button ] Eliom_content.Html.D.elt
+    val clean_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val clean : [> Html_types.button ] Eliom_content.Html.D.elt
+    val info_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val completeInfo : [> Html_types.button ] Eliom_content.Html.D.elt
+    val infoClose_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val closeInfo : [> Html_types.button ] Eliom_content.Html.D.elt
+  end

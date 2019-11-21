@@ -1,0 +1,2 @@
+_server/OCamlFlat.cmo : _server/OCamlFlatSupport.cmo
+_server/OCamlFlat.cmx : _server/OCamlFlatSupport.cmx

@@ -1,0 +1,288 @@
+body {
+    font-family: helvetica neue, helvetica, liberation sans, arial, sans-serif;
+    font-size: 14px;
+  }
+
+#mainTitle {
+  width: 100%;
+  color: #000030;
+}
+
+#under  {
+  color: white;
+  font-size: 14px;
+  text-align: center;
+  width: 198px;
+  text-decoration: underline;
+}
+
+#underBig  {
+  color: white;
+  font-size: 17px;
+  text-align: center;
+  width: 198px;
+  text-decoration: underline;
+}
+
+.title {
+  color: white;
+  font-size: 19px;
+  width: 198px;
+}
+
+  #cy {
+    width: 99%;
+    height: 400px;
+    bottom: 0;
+    right: 0;
+    z-index: 999;
+    display: inline-block;
+    vertical-align: top;
+    border: 1px solid black;
+  }
+
+  #cy2 {
+    width: 0%;
+    height: 400px;
+    bottom: 0;
+    right: 0;
+    z-index: 999;
+    display: inline-block;
+    vertical-align: top;
+    border: 1px solid black;
+  }
+
+  #complete {
+    width: 0%;
+    height: 400px;
+    bottom: 0;
+    right: 0;
+    z-index: 999;
+    display: inline-block;
+    vertical-align: top;
+    border: 1px solid black;
+    font-size: 12px;
+    overflow: scroll;
+    margin-top: 0px;
+  }
+
+  .test {
+    left: inherit;
+    width: 100%;oi
+  }
+
+  #blah {
+    margin-bottom: 30px;
+  }
+
+  #leftBox {
+    width: 150px;
+    float: left;
+}
+
+#rightBox {
+    width: 150px;
+    float: left;
+}
+  
+  h1 {
+    font-size: 40px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 15px;
+  }
+
+  h2 {
+    font-size: 30px;
+    margin: 5px;
+  }
+
+  button {
+    border-style: solid;
+    border-radius: 5px;
+    padding-left: 10px;
+    border-color: lightgray;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: lightblue;
+    opacity: 0.3px;
+    margin: 5px;
+    width: 170px;
+  }
+
+#inputBox {
+  top: 100px; 
+  left: 10px; 
+  width: 400px;
+  border-style: solid;
+  border-radius: 5px;
+  padding-left: 10px;
+  border-color: dimgray;
+  overflow: hidden;
+  }
+
+* {
+  font-family: sans-serif;
+}
+div.button {
+  width: 400px;
+  height: 30px;
+  padding: 0;
+  cursor: pointer;
+}
+div.content {
+  width: 200px;
+  padding: 5px;
+  margin-top: 0;
+}
+
+.hidden {
+  display: none;
+}
+
+#test{
+  float: left;
+}
+
+#invisible {
+  border-style: hidden;
+  background-color: unset;
+  text-decoration: underline;
+  width: 80px;
+}
+
+#separate {
+  padding-bottom: 10px;
+}
+
+#box {
+  width:170px;
+  margin-left: 5px;
+}
+
+#space {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+#leftBox1 {
+  width: 500px;
+  float: left;
+}
+#rightBox1 {
+  width: 500px;
+  float: left;
+}
+
+#answerBox {
+  width: 500px;
+  border: none;
+}
+
+/* Menu formatting */
+
+.sidenav {
+  height: 100%;
+  width: 200px;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  background-color: #000030;
+  overflow-x: hidden;
+  padding-top: 20px;
+}
+
+.sidenav a {
+  padding: 6px 8px 6px 16px;
+  text-decoration: none;
+  font-size: 25px;
+  color: #818181;
+  display: block;
+}
+
+.sidenav a:hover {
+  color: #f1f1f1;
+}
+
+.main {
+  margin-left: 200px; /* Same as the width of the sidenav */
+  font-size: 28px; /* Increased text to enable scrolling */
+  padding: 0px 10px;
+}
+
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 15px;}
+  .sidenav a {font-size: 18px;}
+}
+
+.text {
+  color:white;
+}
+
+.box1 {
+  align-content: center;  
+  display: grid;
+  width: 180px;
+
+}
+
+.inputBox {
+  width: inherit;
+} 
+
+.smallTitle {
+  color: white;
+}
+
+#file_input {
+  color: white;
+}
+
+#infoBox {
+  width: 99%;
+  display: inline-block;
+  vertical-align: top;
+  border: 1px solid black;
+}
+
+#textarea {
+  width: 98%;
+  border: 0px;
+}
+
+#isdeterministic, #isminimal, #areuseful, #numbertransitions, #numberstates, #wordTitle {
+  font-size: 16px;
+}
+
+#info {
+  font-size: 22px;
+}
+
+.footer {
+  position: fixed;
+   left: 0;
+   bottom: 0;
+   width: 100%;
+   padding: 5px;
+  background-color: #000030;
+  text-align: center;
+  font-size: .85rem;
+  line-height: 1.75;
+  color: white;
+}
+
+#footerButton {
+  border-style: none;
+    border-radius: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin: 0px;
+    color: white;
+    display: inline-block;
+    text-decoration: underline;
+}

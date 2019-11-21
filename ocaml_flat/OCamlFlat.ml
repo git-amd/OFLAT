@@ -1061,10 +1061,10 @@ struct
 					match rep with 
 						| RegExpSyntax.Plus(l, r) -> Set.union (lang l) (lang r)	
 						| RegExpSyntax.Seq(l, r) ->	 seqConcat (lang l) (lang r)											
-						| RegExpSyntax.Star(r) -> [[]]
-						| RegExpSyntax.Symb(c) -> [Set.make [c]]
-						| RegExpSyntax.Empty -> []
-						| RegExpSyntax.Zero -> []
+						| RegExpSyntax.Star(r) -> Set.make [[]]
+						| RegExpSyntax.Symb(c) -> Set.make [[c]]
+						| RegExpSyntax.Empty -> Set.empty
+						| RegExpSyntax.Zero -> Set.empty
 				in
 					lang representation 
 				
