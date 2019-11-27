@@ -38,7 +38,7 @@ module rec Entity : sig
 			method kind : string
 			method description : string
 			method name : string
-			method errors : error
+			method errors : string list
 			method handleErrors : unit
 			method virtual validate : unit
 			method virtual toJSon : json
@@ -55,7 +55,7 @@ struct
 			method kind: string = kind
 			method description: string = description
 			method name: string = name
-			method errors = errors
+			method errors: string list = !errors
 			method virtual validate: unit
 			method virtual toJSon: json
 			method handleErrors = (
@@ -80,7 +80,7 @@ and (*module*) Model : sig
 			method kind : string
 			method description : string
 			method name : string
-			method errors : error
+			method errors : string list
 			method handleErrors : unit
 			method virtual validate : unit
 			method virtual toJSon: json
@@ -132,7 +132,7 @@ and (*module*) FiniteAutomaton : sig
 			method kind : string
 			method description : string
 			method name : string
-			method errors : error
+			method errors : string list
 			method handleErrors : unit
 			method validate : unit
 			method toJSon: json
@@ -961,7 +961,7 @@ and (*module*) RegularExpression : sig
 			method kind : string
 			method description : string
 			method name : string
-			method errors : error
+			method errors : string list
 			method handleErrors : unit
 			method validate : unit
 			method toJSon: json

@@ -90,6 +90,43 @@ function makeNode1 (nm, final)  {
   }
 };
 
+function makeNode (nm, isStart, final)  {
+  var  verify = cy.getElementById (nm);
+  console.log (final);
+  if (verify.length < 1) { 
+    if (final == "true") {
+    if (isStart == "true") {
+      console.log ("isStart = " + isStart);
+      cy.add({
+        data: { id: nm, name: nm },
+        position: { x: 100, y: 100 }, classes: 'SUCCESS'
+      });
+      makeEdge ('transparent', nm, '')
+    } else {
+        cy.add({
+          data: { id: nm, name: nm },
+          position: { x: Math.floor(Math.random() * 1399), y: Math.floor(Math.random() * 299) }, classes: 'SUCCESS'
+        });
+    }
+    } else {
+      if (isStart == "true") {
+        console.log ("isStart = " + isStart);
+        cy.add({
+          data: { id: nm, name: nm },
+          position: { x: 100, y: 100 }
+        });
+        makeEdge ('transparent', nm, '')
+      } else {
+          cy.add({
+            data: { id: nm, name: nm },
+            position: { x: Math.floor(Math.random() * 1399), y: Math.floor(Math.random() * 299) }
+          });
+      }
+    }
+    cy.fit();
+  }
+};
+
 function makeEdge (first, second, third)  {
   console.log (first + ", " + second + ", " + third);
 

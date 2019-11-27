@@ -46,3 +46,39 @@ Nov 20 15:27:22: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 
 Nov 20 15:27:22: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
 Nov 20 15:27:31: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): favicon.ico
 Nov 20 15:30:19: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 21 12:08:48: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 21 12:08:48: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): codecss5.css
+Nov 21 12:08:48: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): painting2.js
+Nov 21 12:08:48: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 21 12:08:48: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): favicon.ico
+Nov 21 12:09:18: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 21 12:09:18: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): codecss5.css
+Nov 21 12:09:18: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): painting2.js
+Nov 21 12:09:18: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:07:34: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:07:34: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): codecss5.css
+Nov 25 12:07:34: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:07:34: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): painting2.js
+Nov 25 12:07:36: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): favicon.ico
+Nov 25 12:07:59: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:07:59: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): codecss5.css
+Nov 25 12:07:59: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): painting2.js
+Nov 25 12:07:59: ocsigen:access: connection for localhost from ::1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:10:53: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:10:53: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:11:38: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:11:38: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:17:15: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:17:15: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:18:09: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:18:10: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): codecss5.css
+Nov 25 12:18:10: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): painting2.js
+Nov 25 12:18:10: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:18:39: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:18:40: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:27:43: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:27:43: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:33:03: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:33:03: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js
+Nov 25 12:45:45: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): 
+Nov 25 12:45:45: ocsigen:access: connection for localhost from 127.0.0.1 (Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:70.0) Gecko/20100101 Firefox/70.0): oflat.js

@@ -180,7 +180,7 @@ module Graphics
 
     let getRandom() = 
         let test = Random.int 16777215 in
-      Printf.sprintf "#%06x" test
+        Printf.sprintf "#%06x" test
 
   end
 
@@ -197,7 +197,7 @@ module rec FiniteAutomatonAnimation : sig
       method kind : string
 			method description : string
 			method name : string
-			method errors : error
+			method errors : string list
 			method handleErrors : unit
 			method validate : unit
 			method toJSon: json
@@ -225,8 +225,6 @@ module rec FiniteAutomatonAnimation : sig
 			method toRegularExpression : RegularExpression.model
 
 			method representation : FiniteAutomaton.t
-
-      method z: FiniteAutomatonAnimation.t
 
       val mutable position : int
       val mutable steps : state Set.t array
@@ -327,25 +325,6 @@ end
 
   class model (arg: FiniteAutomaton.t JSon.alternatives) =
 		object(self) inherit FiniteAutomaton.model arg as super
-
-      method z :FiniteAutomaton.t = self#representation
-
-      			val representation: t =
-				let j = JSon.from_alternatives arg in
-					if j = `Null then
-						JSon.get_representation arg
-					else
-						let alphabet = JSon.field_char_set j "alphabet" in
-						let allStates = JSon.field_string_set j "states" in
-						let initialState = JSon.field_string j "initialState" in
-						let transitions = JSon.field_triples_set j "transitions" in
-						let acceptStates = JSon.field_string_set j "acceptStates" in
-							{	alphabet = alphabet;
-								allStates = allStates;
-								initialState = initialState;
-								transitions = transitions;
-								acceptStates = acceptStates
-							}
 
       val mutable steps = [||]
 
@@ -508,7 +487,7 @@ end
         
 
       method newNode  node final = 
-        let rep: t = self#z in 
+        let rep: t = self#representation in 
           if final then
           new FiniteAutomatonAnimation.model (Representation{  
             alphabet = rep.alphabet;
@@ -527,7 +506,7 @@ end
             })
 
       method newTransition (a, b, c) = 
-      let rep: t = self#z in 
+      let rep: t = self#representation in 
         new FiniteAutomatonAnimation.model (Representation{
             alphabet = rep.alphabet @ [b];
 	          allStates = rep.allStates;
@@ -573,11 +552,7 @@ end
         let blah = super#minimize in
           let rep = blah#representation in 
             new FiniteAutomatonAnimation.model (Representation rep) 
-
-    method representation =
-				representation 
-
-    
+ 
     method toDeterministic1: FiniteAutomatonAnimation.model = 
       let blah = super#toDeterministic in
         let rep = blah#representation in 
@@ -590,10 +565,10 @@ end
         new FiniteAutomatonAnimation.model (Representation rep) 
 
       method numberStates: int =
-        List.length representation.allStates
+        List.length self#representation.allStates
 
       method numberTransitions: int =
-        List.length representation.transitions
+        List.length self#representation.transitions
 							
     end
 
@@ -843,10 +818,10 @@ module Controller =
       getNumberTransitions()
     
     let createTransition (v1, c3, v2) =
-      if (List.mem v1 !automata#z.allStates) != true then
+      if (List.mem v1 !automata#representation.allStates) != true then
             JS.alert ("O estado de partida não existe!")
           else 
-            if (List.mem v2 !automata#z.allStates) != true then
+            if (List.mem v2 !automata#representation.allStates) != true then
               JS.alert ("O estado de chegada não existe!")
             else 
               ((ignore (automata := !automata#newTransition (v1, c3, v2)));
@@ -928,6 +903,13 @@ module Controller =
         info##.innerHTML := Js_of_ocaml.Js.string "";
         Graphics.fit()
 
+    let printErrors () =
+      let errors = !automata#errors in
+      if errors = [] then 
+        JS.alert "ok"
+      else 
+        JS.alert (String.concat "\n" errors)
+
   end
 
 
@@ -946,7 +928,8 @@ let%client fileWidgetCanceled () =
 	JS.alert "Canceled"
 
 let%client fileWidgetAction txt =
-	Controller.createAutomataText txt
+	Controller.createAutomataText txt;
+  Controller.printErrors ()
 
 let%client onFileLoad e =
 	Js.Opt.case
@@ -1208,6 +1191,7 @@ let () =
                                                       script ~a:[a_src script_uri] (txt "");
                                                     ])
             (body [ div ~a:[a_class ["sidenav"]] [
+                      div [h2 [txt "OFLAT"]; h3[txt "version 1.1"]];
                       HtmlPage.mywidget "Autómatos Finitos" (HtmlPage.hiddenBox2 (div [HtmlPage.inputBox;
                         HtmlPage.mywidget "Carregar Autómatos" (HtmlPage.hiddenBox2 (div [HtmlPage.upload; fileWidgetMake ()])) "under";
                         HtmlPage.mywidget "Gerar Autómatos" (HtmlPage.hiddenBox2 HtmlPage.generate) "under";
