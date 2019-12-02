@@ -286,3 +286,14 @@ div.content {
     display: inline-block;
     text-decoration: underline;
 }
+
+#title {
+  color: white;
+  text-align: center;
+}
+
+#version {
+  font-size: 12px;
+  color: white;
+  text-align: center;
+}

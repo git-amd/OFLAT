@@ -110,3 +110,27 @@ Nov 25 12:42:57: ocsigen:ocsipersist:dbm: Initializing ...
 Nov 25 12:42:58: ocsigen:ocsipersist:dbm: Launching a new Ocsidbm process: /Users/rita/.opam/4.07.1/lib/ocsigenserver/extensions/ocsidbm on directory local/var/data/oflat/ocsipersist.
 Nov 25 12:42:58: ocsigen:ocsipersist:dbm: ...Initialization complete
 Nov 25 12:42:58: ocsigen:config: While parsing config file, tag <host>: No defaulthostname, assuming it is "10-22-205-174.ed2.openfct.fct.unl.pt"
+Nov 27 16:46:05: ocsigen:ocsipersist:dbm: Initializing ...
+Nov 27 16:46:06: ocsigen:ocsipersist:dbm: Launching a new Ocsidbm process: /Users/rita/.opam/4.07.1/lib/ocsigenserver/extensions/ocsidbm on directory local/var/data/oflat/ocsipersist.
+Nov 27 16:46:06: ocsigen:ocsipersist:dbm: ...Initialization complete
+Nov 27 16:46:06: ocsigen:config: While parsing config file, tag <host>: No defaulthostname, assuming it is "mbp-de-rita.lan"
+Nov 27 16:47:57: ocsigen:ocsipersist:dbm: Initializing ...
+Nov 27 16:47:59: ocsigen:ocsipersist:dbm: Launching a new Ocsidbm process: /Users/rita/.opam/4.07.1/lib/ocsigenserver/extensions/ocsidbm on directory local/var/data/oflat/ocsipersist.
+Nov 27 16:47:59: ocsigen:ocsipersist:dbm: ...Initialization complete
+Nov 27 16:47:59: ocsigen:config: While parsing config file, tag <host>: No defaulthostname, assuming it is "mbp-de-rita.lan"
+Nov 27 16:50:46: ocsigen:ocsipersist:dbm: Initializing ...
+Nov 27 16:50:47: ocsigen:ocsipersist:dbm: Launching a new Ocsidbm process: /Users/rita/.opam/4.07.1/lib/ocsigenserver/extensions/ocsidbm on directory local/var/data/oflat/ocsipersist.
+Nov 27 16:50:47: ocsigen:ocsipersist:dbm: ...Initialization complete
+Nov 27 16:50:47: ocsigen:config: While parsing config file, tag <host>: No defaulthostname, assuming it is "mbp-de-rita.lan"
+Nov 27 16:58:08: ocsigen:ocsipersist:dbm: Initializing ...
+Nov 27 16:58:10: ocsigen:ocsipersist:dbm: Launching a new Ocsidbm process: /Users/rita/.opam/4.07.1/lib/ocsigenserver/extensions/ocsidbm on directory local/var/data/oflat/ocsipersist.
+Nov 27 16:58:10: ocsigen:ocsipersist:dbm: ...Initialization complete
+Nov 27 16:58:10: ocsigen:config: While parsing config file, tag <host>: No defaulthostname, assuming it is "mbp-de-rita.lan"
+Nov 27 17:01:27: ocsigen:ocsipersist:dbm: Initializing ...
+Nov 27 17:01:28: ocsigen:ocsipersist:dbm: Launching a new Ocsidbm process: /Users/rita/.opam/4.07.1/lib/ocsigenserver/extensions/ocsidbm on directory local/var/data/oflat/ocsipersist.
+Nov 27 17:01:28: ocsigen:ocsipersist:dbm: ...Initialization complete
+Nov 27 17:01:28: ocsigen:config: While parsing config file, tag <host>: No defaulthostname, assuming it is "mbp-de-rita.lan"
+Nov 28 11:11:42: ocsigen:ocsipersist:dbm: Initializing ...
+Nov 28 11:11:44: ocsigen:ocsipersist:dbm: Launching a new Ocsidbm process: /Users/rita/.opam/4.07.1/lib/ocsigenserver/extensions/ocsidbm on directory local/var/data/oflat/ocsipersist.
+Nov 28 11:11:44: ocsigen:ocsipersist:dbm: ...Initialization complete
+Nov 28 11:11:44: ocsigen:config: While parsing config file, tag <host>: No defaulthostname, assuming it is "10-22-206-109.ed2.openfct.fct.unl.pt"

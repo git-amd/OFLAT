@@ -187,7 +187,7 @@ struct
 	let transitionGet23 trns = Set.map (fun(_,b,c) -> (b,c)) trns 
 	
 	(* fuse all states into a new state  *)
-	let fuseStates sts = String.concat "," sts 
+	let fuseStates sts = String.concat "_" sts 
 	
 	(* checks if set ts has at least one transition from state st through symbol sy *)
 	let hasTrans st sy ts = Set.exists (fun (x,y,_) -> x = st && y = sy) ts 

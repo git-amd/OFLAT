@@ -39,7 +39,8 @@ let script_uri =
   Eliom_content.Html.D.make_uri
       ~absolute:false   (* We want local file *)
       ~service:(Eliom_service.static_dir ())
-      ["painting2.js"]
+      ["painting3.js"]
+
 
 let script_uri1 =
   Eliom_content.Html.D.make_uri
@@ -154,11 +155,12 @@ module Graphics
     let createEdge1 (f, s, t) = 
         JS.exec ("makeEdge2('" ^ f ^ "', '" ^ t ^ "', '" ^ (String.make 1 s) ^ "')")
 
-    let createNode node isFinal =
-        JS.exec ("makeNode1('" ^ node ^ "', '" ^ string_of_bool (isFinal) ^ "')")
+    let createNode node isStart isFinal =
+        JS.log ("isStart = " ^ string_of_bool (isStart));
+        JS.exec ("makeNode('" ^ node ^ "', '" ^ string_of_bool (isStart) ^ "', '" ^ string_of_bool (isFinal) ^ "')")
 
-    let createNode1 node isFinal =
-        JS.exec ("makeNode2('" ^ node ^ "', '" ^ string_of_bool (isFinal) ^ "')")
+    let createNode1 node isStart isFinal =
+        JS.exec ("makeNode2('" ^ node ^ "', '" ^ string_of_bool (isStart) ^ "', '" ^ string_of_bool (isFinal) ^ "')")
     
     let startGraph () =   
         JS.exec ("start()")
@@ -348,16 +350,16 @@ end
             done)
 
       method inputNodes  = 
-        List.iter (fun el -> (Graphics.createNode el (List.mem el self#representation.acceptStates)) ) self#representation.allStates
+        List.iter (fun el -> (Graphics.createNode el (el = self#representation.initialState) (List.mem el self#representation.acceptStates)) ) self#representation.allStates
 
       method inputNodes1  = 
-        List.iter (fun el -> (Graphics.createNode1 el (List.mem el self#representation.acceptStates)) ) self#representation.allStates
+        List.iter (fun el -> (Graphics.createNode1 el (el = self#representation.initialState) (List.mem el self#representation.acceptStates)) ) self#representation.allStates
 
       method inputNodesPainting colors number = 
         let listStates = self#representation.allStates in 
         for i=0 to number-1 do
           let newState = List.nth listStates i in 
-          Graphics.createNode1 newState (List.mem newState self#representation.acceptStates);
+          Graphics.createNode1 newState (newState = self#representation.initialState) (List.mem newState self#representation.acceptStates);
           let color = Array.get colors i in
           paintMinimized newState color
         done
@@ -672,44 +674,44 @@ module Controller =
     let getDeterminim () = 
       let isdeterministic = Dom_html.getElementById "isdeterministic" in
         if !automata#isDeterministic then 
-          let deterministic = Js_of_ocaml.Js.string ("O autómato é determinista!") in 
+          let deterministic = Js_of_ocaml.Js.string ("O autómato é determinista.") in 
           isdeterministic##.innerHTML := deterministic
         else 
-          let deterministic = Js_of_ocaml.Js.string ("O autómato não é determinista!") in 
+          let deterministic = Js_of_ocaml.Js.string ("O autómato não é determinista.") in 
           isdeterministic##.innerHTML := deterministic
     
     let getminimism () = 
       let isminimal = Dom_html.getElementById "isminimal" in
           if !automata#isMinimized then 
-          let minimal = Js_of_ocaml.Js.string ("O autómato é minimo!") in 
+          let minimal = Js_of_ocaml.Js.string ("O autómato é minimo.") in 
           isminimal##.innerHTML := minimal 
         else 
-          let minimal = Js_of_ocaml.Js.string ("O autómato não é minimo!") in 
+          let minimal = Js_of_ocaml.Js.string ("O autómato não é minimo.") in 
           isminimal##.innerHTML := minimal
     
     let gethasuselessStates () = 
       let isminimal = Dom_html.getElementById "areuseful" in
           if (!automata#areAllStatesUseful) then 
-            (let minimal = Js_of_ocaml.Js.string ("O autómato não tem estados inúteis!") in 
+            (let minimal = Js_of_ocaml.Js.string ("O autómato não tem estados inúteis.") in 
             isminimal##.innerHTML := minimal)
           else 
           (let useless = !automata#getUselessStates in
             let number = List.length useless in 
               let string_of_words l = String.concat ", " l in
                 let blah = string_of_words useless in
-                let minimal = "O autómato tem " ^ (string_of_int number) ^ " estados inúteis: " ^ blah ^ "!" in 
+                let minimal = "O autómato tem " ^ (string_of_int number) ^ " estados inúteis: " ^ blah in 
                   isminimal##.innerHTML := Js_of_ocaml.Js.string minimal)
 
     let getNumberStates () = 
       let number = string_of_int !automata#numberStates in 
         let numberStates = Dom_html.getElementById "numberstates" in
-          let sentence = "Número de Estados: " ^ number ^ "!" in 
+          let sentence = "Número de Estados: " ^ number in 
           numberStates##.innerHTML := Js_of_ocaml.Js.string sentence
     
     let getNumberTransitions () = 
       let number = string_of_int !automata#numberTransitions in 
         let numberTrans = Dom_html.getElementById "numbertransitions" in
-          let sentence = "Número de Transições: " ^ number ^ "!" in 
+          let sentence = "Número de Transições: " ^ number in 
           numberTrans##.innerHTML := Js_of_ocaml.Js.string sentence
     
     let defineExample example =
@@ -797,20 +799,34 @@ module Controller =
         automata1 := !automata#toDeterministic1;
         !automata1#drawExample1)
 
-    let createInitialNode isFinal = 
-     automata := !automata#initialNode isFinal;
-     Graphics.destroyGraph ();
-     Graphics.startGraph ();
-     Graphics.createNode "START" isFinal;
-     getDeterminim();
+    let createInitialNode isStart isFinal = 
+      let cy = Dom_html.getElementById "cy" in
+      cy##.style##.width:= Js_of_ocaml.Js.string "99%";
+      let cy2 = Dom_html.getElementById "cy2" in
+      cy2##.style##.width:= Js_of_ocaml.Js.string "0%";
+      let info = Dom_html.getElementById "complete" in
+      info##.style##.width:= Js_of_ocaml.Js.string "0%";
+      info##.innerHTML := Js_of_ocaml.Js.string "";
+      automata := !automata#initialNode isFinal;
+      Graphics.destroyGraph ();
+      Graphics.startGraph ();
+      Graphics.createNode "START" isStart isFinal;
+      getDeterminim();
       getminimism();
       gethasuselessStates();
       getNumberStates();
       getNumberTransitions()
 
-    let createNode node isFinal = 
+    let createNode node isStart isFinal = 
+      let cy = Dom_html.getElementById "cy" in
+      cy##.style##.width:= Js_of_ocaml.Js.string "99%";
+      let cy2 = Dom_html.getElementById "cy2" in
+      cy2##.style##.width:= Js_of_ocaml.Js.string "0%";
+      let info = Dom_html.getElementById "complete" in
+      info##.style##.width:= Js_of_ocaml.Js.string "0%";
+      info##.innerHTML := Js_of_ocaml.Js.string "";
       ignore (automata := !automata#newNode node isFinal);
-      Graphics.createNode node isFinal;
+      Graphics.createNode node isStart isFinal;
       getDeterminim();
       getminimism();
       gethasuselessStates();
@@ -863,8 +879,14 @@ module Controller =
 
     let createAutomataText texto = 
       let txt = Js_of_ocaml.Js.to_string texto in
-      let fa = new FiniteAutomatonAnimation.model (Text txt) in
-      defineExample fa
+      let j = JSon.from_string txt in
+			let kind = JSon.field_string j "kind" in
+				if FiniteAutomaton.modelDesignation () = kind then
+					(let fa = new FiniteAutomatonAnimation.model (JSon j) in 
+          defineExample fa)
+				else
+					(let fa = new FiniteAutomatonAnimation.model (JSon j) in 
+          defineExample fa)
     
     let isDeterministic () =
       !automata#isDeterministic
@@ -906,7 +928,7 @@ module Controller =
     let printErrors () =
       let errors = !automata#errors in
       if errors = [] then 
-        JS.alert "ok"
+      ()
       else 
         JS.alert (String.concat "\n" errors)
 
@@ -1016,23 +1038,23 @@ let inputBox = input ~a:[a_id "box"; a_input_type `Text]()
 let generate =
 
    let onclick_handler4 = [%client (fun _ ->
-      Controller.createInitialNode false
+      Controller.createInitialNode true false
   )] in 
   let button4 = button ~a:[a_onclick onclick_handler4] [txt "Adicionar estado inicial"] in
   let onclick_handler5 = [%client (fun _ ->
-    Controller.createInitialNode true
+    Controller.createInitialNode true true
   )] in 
   let button5 = button ~a:[a_onclick onclick_handler5] [txt "Adicionar estado inicial como final"] in
   let onclick_handler2 = [%client (fun _ ->
     let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
     let v = Js_of_ocaml.Js.to_string i##.value in
-      Controller.createNode v false
+      Controller.createNode v false false
   )] in
   let button2 = button ~a:[a_onclick onclick_handler2] [txt "Adicionar estado"] in
   let onclick_handler6 = [%client (fun _ ->
     let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
     let v = Js_of_ocaml.Js.to_string i##.value in
-      Controller.createNode v true
+      Controller.createNode v false true
   )] in
   let button6 = button ~a:[a_onclick onclick_handler6] [txt "Adicionar estado final"] in
   let onclick_handler3 = [%client (fun _ ->
@@ -1173,9 +1195,6 @@ let closeInfo = button ~a:[a_onclick infoClose_handler] [txt "Fechar a formataç
 end
 
 
-
-
-
 let () =
   OFlat_app.register
     ~service:main_service
@@ -1187,13 +1206,15 @@ let () =
             (head (title (txt "Autómatos Animados")) [script ~a:[a_src script_uri1] (txt ""); 
                                                       script ~a:[a_src script_uri5] (txt "");
                                                       script ~a:[a_src script_uri7] (txt ""); 
-                                                      css_link ~uri: (make_uri (Eliom_service.static_dir ()) ["codecss5.css"]) ();
+                                                      css_link ~uri: (make_uri (Eliom_service.static_dir ()) ["codecss.css"]) ();
                                                       script ~a:[a_src script_uri] (txt "");
                                                     ])
             (body [ div ~a:[a_class ["sidenav"]] [
-                      div [h2 [txt "OFLAT"]; h3[txt "version 1.1"]];
-                      HtmlPage.mywidget "Autómatos Finitos" (HtmlPage.hiddenBox2 (div [HtmlPage.inputBox;
-                        HtmlPage.mywidget "Carregar Autómatos" (HtmlPage.hiddenBox2 (div [HtmlPage.upload; fileWidgetMake ()])) "under";
+                      div [h2 ~a: [a_id "title"] [txt "OFLAT"]; p ~a: [a_id "version"][txt "version 1.1"]];
+                      div [fileWidgetMake ()];
+                      div [HtmlPage.inputBox];
+                      HtmlPage.mywidget "Autómatos Finitos" (HtmlPage.hiddenBox2 (div [
+                        HtmlPage.mywidget "Carregar Autómatos" (HtmlPage.hiddenBox2 HtmlPage.upload) "under";
                         HtmlPage.mywidget "Gerar Autómatos" (HtmlPage.hiddenBox2 HtmlPage.generate) "under";
                         HtmlPage.mywidget "Testar aceitação de palavra" (HtmlPage.hiddenBox2 HtmlPage.verify) "under";
                         HtmlPage.mywidget "Avaliar Natureza dos Estados" (HtmlPage.hiddenBox2 HtmlPage.evaluate) "under";

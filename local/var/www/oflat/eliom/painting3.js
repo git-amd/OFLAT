@@ -47,48 +47,15 @@ function start () {
     ],
     elements: {
       nodes: [
-        {data: { id: 'transparent', name: 'transparent' },  position: { x: 100, y: 100 }}
+        {data: { id: 'transparent', name: 'transparent' }}
       ]
     }
   });
+  cy.$('#transparent').position('y', 200);
+  cy.$('#transparent').position('x', -200);
+  cy.$('#transparent').lock();
 }
 
-function makeNode1 (nm, final)  {
-  var  verify = cy.getElementById (nm);
-  console.log (final);
-  if (verify.length < 1) { 
-    if (final == "true") {
-    if (nm == 'START') {
-      console.log ("Teste");
-      cy.add({
-        data: { id: nm, name: nm },
-        position: { x: 100, y: 100 }, classes: 'SUCCESS'
-      });
-      makeEdge ('transparent', nm, '')
-    } else {
-        cy.add({
-          data: { id: nm, name: nm },
-          position: { x: Math.floor(Math.random() * 1399), y: Math.floor(Math.random() * 299) }, classes: 'SUCCESS'
-        });
-    }
-    } else {
-      if (nm == 'START') {
-        console.log ("Teste");
-        cy.add({
-          data: { id: nm, name: nm },
-          position: { x: 100, y: 100 }
-        });
-        makeEdge ('transparent', nm, '')
-      } else {
-          cy.add({
-            data: { id: nm, name: nm },
-            position: { x: Math.floor(Math.random() * 1399), y: Math.floor(Math.random() * 299) }
-          });
-      }
-    }
-    cy.fit();
-  }
-};
 
 function makeNode (nm, isStart, final)  {
   var  verify = cy.getElementById (nm);
@@ -98,9 +65,11 @@ function makeNode (nm, isStart, final)  {
     if (isStart == "true") {
       console.log ("isStart = " + isStart);
       cy.add({
-        data: { id: nm, name: nm },
-        position: { x: 100, y: 100 }, classes: 'SUCCESS'
+        data: { id: nm, name: nm }, classes: 'SUCCESS'
       });
+      cy.$('#' + nm).position('y', 200);
+      cy.$('#' + nm).position('x', -100);
+      cy.$('#' + nm).lock();
       makeEdge ('transparent', nm, '')
     } else {
         cy.add({
@@ -112,9 +81,11 @@ function makeNode (nm, isStart, final)  {
       if (isStart == "true") {
         console.log ("isStart = " + isStart);
         cy.add({
-          data: { id: nm, name: nm },
-          position: { x: 100, y: 100 }
+          data: { id: nm, name: nm }
         });
+        cy.$('#' + nm).position('y', 200);
+        cy.$('#' + nm).position('x', -100);
+        cy.$('#' + nm).lock();
         makeEdge ('transparent', nm, '')
       } else {
           cy.add({
@@ -124,6 +95,14 @@ function makeNode (nm, isStart, final)  {
       }
     }
     cy.fit();
+    var pos = cy.$('#transparent').position('x');
+    console.log ("Transparent x: " + pos);
+    var pos1 = cy.$('#transparent').position('y');
+    console.log ("Transparent y: " + pos1);
+    var pos2 = cy.$('#' + nm).position('x');
+    console.log (nm + " x: " + pos2);
+    var pos3 = cy.$('#' + nm).position('y');
+    console.log (nm + " y: " + pos3);
   }
 };
 
@@ -145,8 +124,6 @@ function makeEdge (first, second, third)  {
       data: { id: nId, source: first, symbol: newsymbol, target: second }
     })
   }
-
-  cy.fit();
 };
 
 function destroy1 () {
@@ -161,114 +138,6 @@ function fit () {
     cy.resize();
   }
 
-};
-
-function changeColor1 (node, length, success) {
-  console.log (node);
-  var test = parseInt(length);
-  console.log ("Tamanho da frase" + test);
-
-  console.log (success);
-
-  if (length != 0) {
-  cy.style (cytoscape.stylesheet()
-    .selector( 'node[name]')
-    .style ({
-      'content': 'data(name)',
-      'text-valign': 'bottom',
-      'text-halign': 'center'
-    })
-    .selector( 'edge[symbol]')
-    .style ( {
-          'content': 'data(symbol)'
-        })
-    .selector ('edge')
-    .style ({
-          'curve-style': 'bezier',
-          'target-arrow-shape': 'triangle'
-    })
-    .selector('#' + node)
-    .style({
-      'background-color': 'blue'
-    })
-    .selector ('.SUCCESS')
-    .style ({
-          'border-width': '10px',
-          'border-color': 'black',
-          'border-style': 'double'
-        })
-    .selector( '#transparent')
-    .style ({
-          'visibility': 'hidden'
-        })
-  );
-  } else {
-    if (success == "true") {
-      cy.style (cytoscape.stylesheet()
-    .selector( 'node[name]')
-    .style ({
-      'content': 'data(name)',
-      'text-valign': 'bottom',
-      'text-halign': 'center'
-    })
-    .selector( 'edge[symbol]')
-    .style ( {
-          'content': 'data(symbol)'
-        })
-    .selector ('edge')
-    .style ({
-          'curve-style': 'bezier',
-          'target-arrow-shape': 'triangle'
-    })
-    .selector('#' + node)
-    .style({
-      'background-color': 'green'
-    })
-    .selector ('.SUCCESS')
-    .style ({
-          'border-width': '10px',
-          'border-color': 'black',
-          'border-style': 'double'
-        })
-    .selector( '#transparent')
-    .style ({
-              'visibility': 'hidden'
-            })
-  );
-    } else {
-      cy.style (cytoscape.stylesheet()
-    .selector( 'node[name]')
-    .style ({
-      'content': 'data(name)',
-      'text-valign': 'bottom',
-      'text-halign': 'center'
-    })
-    .selector( 'edge[symbol]')
-    .style ( {
-          'content': 'data(symbol)'
-        })
-    .selector ('edge')
-    .style ({
-          'curve-style': 'bezier',
-          'target-arrow-shape': 'triangle'
-    })
-    .selector('#' + node)
-    .style({
-      'background-color': 'red'
-    })
-    .selector ('.SUCCESS')
-    .style ({
-          'border-width': '10px',
-          'border-color': 'black',
-          'border-style': 'double'
-        })
-        .selector( '#transparent')
-        .style ({
-              'visibility': 'hidden'
-            })
-  );
-    }
-  }
 };
 
 function resetStyle () {
@@ -325,12 +194,8 @@ function fileSelectAction() {
   
 }
 
-
-
-
-
 function start2 () {
-  var cy2 = window.cy2 = cytoscape({
+  var  cy2 = window.cy2 = cytoscape({
     container: document.getElementById('cy2'),
     layout: {
       name: 'grid',
@@ -362,7 +227,7 @@ function start2 () {
         }
       },
     {
-      selector: '#transparent',
+      selector: '#transparent1',
       style: {
         'visibility': 'hidden'
       }
@@ -378,24 +243,28 @@ function start2 () {
     ],
     elements: {
       nodes: [
-        {data: { id: 'transparent', name: 'transparent' },  position: { x: 100, y: 100 }}
+        {data: { id: 'transparent1', name: 'transparent1' }}
       ]
     }
   });
+  cy2.$('#transparent1').position('y', 200);
+  cy2.$('#transparent1').position('x', -200);
+  cy2.$('#transparent1').lock();
 }
 
-function makeNode2 (nm, final)  {
+function makeNode2 (nm, isStart, final)  {
   var  verify = cy2.getElementById (nm);
-  console.log (final);
   if (verify.length < 1) { 
     if (final == "true") {
-    if (nm == 'START') {
-      console.log ("Teste");
+    if (isStart == "true") {
+      console.log ("staaaaaaaaaaaaaart");
       cy2.add({
-        data: { id: nm, name: nm },
-        position: { x: 100, y: 100 }, classes: 'SUCCESS'
+        data: { id: nm, name: nm }, classes: 'SUCCESS'
       });
-      makeEdge ('transparent', nm, '')
+      cy2.$('#' + nm).position('y', 200);
+      cy2.$('#' + nm).position('x', -100);
+      cy2.$('#' + nm).lock();
+      makeEdge2 ('transparent1', nm, '')
     } else {
         cy2.add({
           data: { id: nm, name: nm },
@@ -403,13 +272,15 @@ function makeNode2 (nm, final)  {
         });
     }
     } else {
-      if (nm == 'START') {
-        console.log ("Teste");
+      if (isStart == "true") {
+        console.log ("staaaaaaaaaaaaaart 2");
         cy2.add({
-          data: { id: nm, name: nm },
-          position: { x: 100, y: 100 }
+          data: { id: nm, name: nm }
         });
-        makeEdge ('transparent', nm, '')
+        cy2.$('#' + nm).position('y', 200);
+        cy2.$('#' + nm).position('x', -100);
+        cy2.$('#' + nm).lock();
+        makeEdge2 ('transparent1', nm, '')
       } else {
           cy2.add({
             data: { id: nm, name: nm },
@@ -418,6 +289,14 @@ function makeNode2 (nm, final)  {
       }
     }
     cy2.fit();
+    var pos = cy2.$('#transparent1').position('x');
+    console.log ("Transparent x: " + pos);
+    var pos1 = cy2.$('#transparent1').position('y');
+    console.log ("Transparent y: " + pos1);
+    var pos2 = cy2.$('#' + nm).position('x');
+    console.log (nm + " x: " + pos2);
+    var pos3 = cy2.$('#' + nm).position('y');
+    console.log (nm + " y: " + pos3);
   }
 };
 
