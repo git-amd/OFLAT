@@ -12,9 +12,9 @@
 *)
 
 
-open OCamlFlatSupport 
+open OCamlFlatSupport  
 
-(*#use "OCamlFlatSupport.ml";; *)
+(*#use "OCamlFlatSupport.ml";;*)
 (* --- Configuration --- *)
 
 module Configuration = struct
@@ -847,17 +847,13 @@ struct
 					
 	
 			method toRegularExpression =
-			
 			(*
 				let fa = self#toDeterministic in
 				
-				let fa2 = fa#cleanUselessStates in				
+				let rep = fa#representation in	
+			*)		
 				
-				let rep = fa2#representation in	
-				
-			*)	
-			
-			
+				 
 			
 			
 			
@@ -1114,9 +1110,10 @@ and (*module*) RegularExpression : sig
 			method quasiLanguage : words 
 
 			method toFiniteAutomaton : FiniteAutomaton.model
+			
+			method representation : t
 			method checkEnumeration : Enumeration.enum -> bool
 
-			val representation : t
 			
 		  end
 end
@@ -1153,6 +1150,8 @@ struct
 					("re", `String (RegExpSyntax.toString rep));
 				]
 
+			method representation = representation	
+				
 			method validate = ( 
 				
 				(*
@@ -1174,45 +1173,9 @@ struct
 				*)
 			)
 
-			
-			method accept (w: word): bool = 
-			
-				let sz = List.length w in
-				let lang = self#generate sz in
-					Set.belongs w lang
-				  
-			
-			
-			method generate (length: int): words = 
-														
-				let rec lang rep ln = 
-					match rep with 
-						| Plus(l, r) -> Set.union (lang l ln) (lang r ln)	
-						| Seq(l, r) ->  let left = lang l ln in
-										let rigth w = lang r (ln - (List.length w)) in
-										let conc w = Util.concatAll w (Set.toList (rigth w)) in
-											Set.flatMap (fun lw -> Set.make (conc lw)) left											
-						| Star r -> 														
-							let rec starX ws sz = 
-								if sz <= 0 then Set.make [[]] 
-								else 
-									let ws = Set.filter (fun x -> sz >= (List.length x)) ws in
-									let newLn w = sz - (List.length w) in					
-									let tail w ws = Set.toList (starX ws (newLn w)) in
-									let conc w ws = Util.concatAll w (tail w ws) in
-									let track w ws = Set.add w (Set.make (conc w ws)) in
-										Set.flatMap (fun w -> if w = [] then Set.make [[]] else track w ws) ws in										
-							let exp = lang r ln in
-								Set.add [] (starX exp ln)								
-						| Symb(c) -> if ln > 0 then Set.make [[c]] else Set.empty
-						| Empty -> Set.make [[]]
-						| Zero -> Set.empty 
-				in  
-					lang representation length
-			
-			
-			
-				
+									
+			method tracing: unit = ()
+
 				
 			(* generates the alphabet of all symbols in the regular expression *)					
 			method alphabet: symbols =						
@@ -1230,8 +1193,7 @@ struct
 			
 			(* generates the language of the regular expression for when klenne is always zero 	*)				
 			method quasiLanguage: words =
-											
-									
+													
 				let rec lang rep = 
 					match rep with 
 						| Plus(l, r) -> Set.union (lang l) (lang r)	
@@ -1243,77 +1205,139 @@ struct
 				in
 					lang representation 
 				
-			
-			method tracing: unit = ()
+				
+				
+			method accept (w: word): bool = 
+							
+				let representation = RegExpSyntax.parse "(a*+b*)*" in
+				let w = ['b';'a'] in
+				
+				let partition w = 
+					let rec partX w pword =
+						match w with 
+							[] -> Set.empty
+							| x::xs -> let fwp = pword@[x] in
+											Set.add (fwp, xs) (partX xs fwp) in
+						 Set.add ([],w) (partX w []) in
+									
+				
+				let rec acc rep w = 				
+					match rep with 
+						| Plus(l, r) -> (acc l w) || (acc r w)		
+						| Seq(l, r) -> let wpl =  partition w in
+										   Set.exists (fun (wp1,wp2) -> (acc l wp1) && (acc r wp2)) wpl											
+						| Star(re) -> 	w = [] ||							 
+										(let wpl = Set.remove ([],w) (partition w) in
+											Set.exists (fun (wp1,wp2) -> (acc re wp1) && (acc (Star re) wp2)) wpl)	
+						| Symb(c) -> w = [c]  
+						| Empty -> w = []
+						| Zero -> false
+				in	
+					
+					acc representation w
 
+					
+			method generate (length: int): words = 
+												
+				let rec lang rep ln = 
+					match rep with 
+						| Plus(l, r) -> Set.union (lang l ln) (lang r ln)	
+						| Seq(l, r) ->  let left = lang l ln in
+										let rigth w = lang r (ln - (List.length w)) in
+										let conc w = Util.concatAll w (Set.toList (rigth w)) in
+											Set.flatMap (fun lw -> Set.make (conc lw)) left											
+						| Star r -> let exp = lang r ln in
+										Set.star exp ln
+				
+							(*let rec starX ws sz = 
+								if sz <= 0 then Set.make [[]] 
+								else 
+									let ws = Set.filter (fun x -> sz >= (List.length x)) ws in
+									let newLn w = sz - (List.length w) in					
+									let tail w ws = Set.toList (starX ws (newLn w)) in
+									let conc w ws = Util.concatAll w (tail w ws) in
+									let track w ws = Set.add w (Set.make (conc w ws)) in
+										Set.flatMap (fun w -> if w = [] then Set.make [[]] else track w ws) ws in										
+							let exp = lang r ln in
+								Set.add [] (starX exp ln)*)
+										
+						| Symb(c) -> if ln > 0 then Set.make [[c]] else Set.empty
+						| Empty -> Set.make [[]]
+						| Zero -> Set.empty 
+				in  
+					lang representation length
+			
+			
 			method toFiniteAutomaton: FiniteAutomaton.model = 
-				
-				let getInit = fun (a,_,_,_,_) -> a in
-				let getSts = fun (_,a,_,_,_) -> a in
-				let getAccs = fun (_,_,a,_,_) -> a in
-				let getTrns = fun (_,_,_,a,_) -> a in
-				let getAlf = fun (_,_,_,_,a) -> a in
-				
-								
+				(*auxiliary var for genName function*)				
 				let k = ref 0 in
 				
+				(*for each new state, generates a name that will distinguish it from all the other generated states *)
 				let genName () =
 					let n = !k in 
 					let () = k:= n + 1 in
-						"newSt" ^ (string_of_int n) in
-				
-				
-		 		let representation = RegExpSyntax.parse "aa+d" in 
-				
-				let rec compile rep = 
+						(*easy way of having all single digit state names have a zero before their actual number*)
+						if n > 9 then "new_St" ^ (string_of_int n) 
+									else "new_St0" ^ (string_of_int n) in
+						
+								
+				let rec compile (rep: RegularExpression.t) : FiniteAutomaton.t = 
 					match rep with 
 						| Plus(l, r) -> let fa1 = compile l in
 										let fa2 = compile r in
 										let newStart = genName () in
-										let newSts = Set.add newStart (Set.union (getSts fa1) (getSts fa2)) in
-										let newAccSts = Set.union (getAccs fa1) (getAccs fa2) in
-										let newTran1 = (newStart, epsilon, getInit fa1) in
-										let newTran2 = (newStart, epsilon, getInit fa2) in
+										let newSts = Set.add newStart (Set.union fa1.allStates fa2.allStates) in
+										let newAccSts = Set.union fa1.acceptStates fa2.acceptStates in
+										let newTran1 = (newStart, epsilon, fa1.initialState) in
+										let newTran2 = (newStart, epsilon, fa2.initialState) in
 										let newTrans = Set.add newTran1 (Set.add newTran2 
-											(Set.union (getTrns fa1) (getTrns fa2))) in
-										let newAlf = Set.union (getAlf fa1) (getAlf fa2) in
+											(Set.union fa1.transitions fa2.transitions)) in
+										let newAlf = Set.union fa1.alphabet fa2.alphabet in
 										
-											 (newStart, newSts, newAccSts, newTrans, newAlf)											 
-											
+											{alphabet = newAlf; allStates = newSts; initialState = newStart; 
+												transitions = newTrans; acceptStates = newAccSts} 
+												
 						| Seq(l, r) ->	let fa1 = compile l in
 										let fa2 = compile r in
-										let ist = getInit fa1 in
-										let sts = Set.union (getSts fa1) (getSts fa2) in
-										let asts = getAccs fa2 in										
-										let newTrns = Set.map (fun x -> (x, epsilon, getInit fa2) ) (getAccs fa1) in										
-										let trns = Set.union newTrns (Set.union (getTrns fa1) (getTrns fa2)) in
-										let alf = Set.union (getAlf fa1) (getAlf fa2) in
+										let ist = fa1.initialState in
+										let sts = Set.union fa1.allStates fa2.allStates in
+										let asts = fa2.acceptStates in										
+										let newTrns = Set.map (fun x -> (x, epsilon, fa2.initialState) ) fa1.acceptStates in										
+										let trns = Set.union newTrns (Set.union fa1.transitions fa2.transitions) in
+										let alf = Set.union fa1.alphabet fa2.alphabet in
 						
-											(ist, sts, asts, trns, alf)
+											{alphabet = alf; allStates = sts; initialState = ist; 
+												transitions = trns; acceptStates = asts} 
 						
-						| Star(r) ->  ("", Set.empty, Set.empty, Set.empty, Set.empty)	
+						| Star(r) -> let fa = compile r in
+									 let newStart = genName () in
+									 let newSts = Set.add newStart fa.allStates in
+									 let newTrns = Set.map (fun st -> (st, epsilon, newStart)) fa.acceptStates in
+									 let allNewTrns = Set.add (newStart, epsilon, fa.initialState) (Set.union newTrns fa.transitions) in
+									 
+										{alphabet = fa.alphabet; allStates = newSts; initialState = newStart; 
+											transitions = allNewTrns; acceptStates = Set.make [newStart]}   
 						
 						| Symb(c) -> let newStart = genName () in
 									 let newAcc = genName () in
 									 let newSts = Set.make [newStart; newAcc] in
 									 let newTrn = Set.make [(newStart, c, newAcc)] in
-									(newStart, newSts, Set.make [newStart], newTrn, Set.make [c])
+									 
+										{alphabet = Set.make [c]; allStates = newSts; initialState = newStart; 
+											transitions = newTrn; acceptStates = Set.make [newAcc]} 
 									
-						| Empty ->  let newStart = genName () in
-									(newStart, Set.make [newStart], Set.make [newStart], Set.empty, Set.empty)	
+						| Empty -> let newStart = genName () in
+						
+										{alphabet = Set.empty; allStates = Set.make [newStart]; initialState = newStart; 
+											transitions = Set.empty; acceptStates = Set.make [newStart]}   
 									
 						| Zero -> let newStart = genName () in
-									(newStart, Set.make [newStart], Set.empty, Set.empty, Set.empty)	
+						
+									{alphabet = Set.empty; allStates = Set.make [newStart]; initialState = newStart; 
+											transitions = Set.empty; acceptStates = Set.empty}   	
 				in
 				
-				let newFA = compile representation in
-								
-			
-				new FiniteAutomaton.model (Representation {alphabet = getAlf newFA; allStates = getSts newFA; 
-					initialState = getInit newFA; transitions = getTrns newFA; acceptStates = getAccs newFA} ) 
-			
-			
-
+					new FiniteAutomaton.model (Representation (compile representation)  ) 
 			
 			
 		end
@@ -1348,7 +1372,7 @@ struct
 			if m#accept ['a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted" 
 						
 				
-	let testGenerateLanguage () =
+	let testGenerate () =
 		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
 			Util.println "generated words size 0:"; Util.printWordList (Set.toList (re#generate 0));
   		    Util.println "generated words size 1:"; Util.printWordList (Set.toList (re#generate 1));
@@ -1376,7 +1400,7 @@ struct
 	let runAll =
 		if active then (
 			Util.header "RegularExpressionTests";
-			testToFA ()
+			testAccept ()
 		)
 end
 

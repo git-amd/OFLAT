@@ -149,6 +149,7 @@ sig
 	val belongs : 'a -> 'a t -> bool
 	val union : 'a t -> 'a t -> 'a t
 	val add : 'a -> 'a t -> 'a t
+	val remove : 'a -> 'a t -> 'a t
 	val inter : 'a t -> 'a t -> 'a t
 	val diff : 'a t -> 'a t -> 'a t
 	val subset : 'a t -> 'a t -> bool
@@ -177,6 +178,7 @@ sig
 	let belongs (v: 'a) (s: 'a t): bool = List.mem v s
 	let union (s1: 'a t) (s2: 'a t): 'a t = make (s1 @ s2)
 	let add (v: 'a) (s: 'a t): 'a t = make (v :: s)
+	let remove (v: 'a) (s: 'a t): 'a t = List.filter (fun x -> x <> v) s
 	let inter (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> belongs x s2) s1
 	let diff (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> not (belongs x s2)) s1
 	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun x -> belongs x s2) s1
