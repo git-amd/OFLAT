@@ -9,6 +9,8 @@ val script_uri : Eliom_content.Html.D.uri
 val script_uri1 : Eliom_content.Html.D.uri
 val script_uri5 : Eliom_content.Html.D.uri
 val script_uri7 : Eliom_content.Html.D.uri
+val script_uri8 : Eliom_content.Html.D.uri
+val script_uri9 : Eliom_content.Html.D.uri
 val lincs_service :
   [> [> Html_types.div ] Html_types.a ] Eliom_content.Html.D.elt
 val factor_service :
@@ -40,29 +42,29 @@ val _eliom_fragment_pAMgVd21 :
 val _eliom_fragment_pAMgVd20 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
-val _eliom_escaped_ident_12 :
+val _eliom_escaped_ident_14 :
   [> Html_types.input ] Eliom_content.Html.D.elt option ref
-val _eliom_escaped_ident_11 :
+val _eliom_escaped_ident_13 :
   [> Html_types.textarea ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd19 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
-val _eliom_escaped_ident_10 :
+val _eliom_escaped_ident_12 :
   [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd18 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
-val _eliom_escaped_ident_9 :
+val _eliom_escaped_ident_11 :
   [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd17 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
-val _eliom_escaped_ident_8 :
+val _eliom_escaped_ident_10 :
   [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd16 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
-val _eliom_escaped_ident_7 :
+val _eliom_escaped_ident_9 :
   [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd15 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
@@ -76,9 +78,13 @@ val _eliom_fragment_pAMgVd13 :
 val _eliom_fragment_pAMgVd12 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
+val _eliom_escaped_ident_8 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd11 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
+val _eliom_escaped_ident_7 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd10 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref

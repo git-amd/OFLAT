@@ -1,0 +1,6 @@
+{
+	kind : "regular expression",
+	description : "this is an example",
+	name : "abc",
+	re : "((a+b)*(cd)*)*"
+}

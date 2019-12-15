@@ -1,4 +1,7 @@
+var number = 0;
+
 function start () {
+  number = 0;
   var  cy = window.cy = cytoscape({
     container: document.getElementById('cy'),
     layout: {
@@ -54,6 +57,97 @@ function start () {
   cy.$('#transparent').position('y', 200);
   cy.$('#transparent').position('x', -200);
   cy.$('#transparent').lock();
+}
+
+function generate () {
+  return Math.random().toString(36).substr(2, 9);
+};
+
+function makeTree (s) {
+  var idgen = generate ();
+  var str = s;
+  var st = str[0];
+  console.log (st);
+  switch (st) {
+    case 'E': return [idgen, "{\"data\": {\"id\": \"" + idgen + "\" , \"name\": \"()\"}}", str.substr(1)];
+    case '+': var [lid, lnode, ledge, lret] = makeTree (str.substr(1));
+              var [rid, rnode, redge, rret] = makeTree (lret);
+              return [idgen, "{\"data\": {\"id\": \"" + idgen + "\", \"name\": \"+\"}}, " + lnode + ", " + rnode, "{\"data\": {\"source\": \"" + idgen + "\", \"target\": \"" + lid + "\"}}, {\"data\": {\"source\": \"" + idgen + "\", \"target\": \"" + rid + "\"}}, " + ledge + ", " + redge, rret];
+    case '*': var [cid, cnode, cedge, cret] = makeTree (str.substr(1));
+              return [idgen, "{\"data\": {\"id\": \"" + idgen + "\", \"name\": \"*\"}}, " + cnode, "{\"data\": {\"source\": \"" + idgen + "\", \"target\": \"" + cid + "\"}}, " + cedge, cret];
+    case '.': var [lid, lnode, ledge, lret] = makeTree (str.substr(1));
+              var [rid, rnode, redge, rret] = makeTree (lret);
+              return [idgen, "{\"data\": {\"id\": \"" + idgen + "\", \"name\": \".\"}}, " + lnode + ", " + rnode, "{\"data\": {\"source\": \"" + idgen + "\", \"target\": \"" + lid + "\"}}, {\"data\": {\"source\": \"" + idgen + "\", \"target\": \"" + rid + "\"}}, " + ledge + ", " + redge, rret];
+    default: return [idgen, "{\"data\": {\"id\": \"" + idgen + "\", \"name\": \"" + st + "\"}}", [], str.substr(1)];
+  }
+}
+
+var xxx;
+var yyy;
+var zzz;
+
+function makeTree1 (s) {
+  var idgen = generate ();
+  var str = s;
+  var st = str[0];
+  switch (st) {
+    case 'E': return [idgen, [{data: {id: idgen, name: "()"}}], [], str.substr(1)];
+    case '+': var [lid, lnode, ledge, lret] = makeTree1 (str.substr(1));
+              var [rid, rnode, redge, rret] = makeTree1 (lret);
+              return [idgen, [{data: {id: idgen, name: "+" }}].concat(lnode).concat(rnode), [{data: {source: idgen, target: lid}}].concat([{data: {source: idgen, target: rid}}]).concat(ledge).concat(redge), rret];
+    case '*': var [cid, cnode, cedge, cret] = makeTree1 (str.substr(1));
+              return [idgen, [{data: {id: idgen, name: "*"}}].concat(cnode), [{data: {source: idgen, target: cid}}].concat(cedge), cret];
+    case '.': var [lid, lnode, ledge, lret] = makeTree1 (str.substr(1));
+              var [rid, rnode, redge, rret] = makeTree1 (lret);
+              return [idgen, [{data: {id: idgen, name: "."}}].concat(lnode).concat(rnode), [{data: {source: idgen, target: lid}}].concat([{data: {source: idgen, target: rid}}]).concat(ledge).concat(redge), rret];
+    default: return [idgen, [{data: {id: idgen, name: st}}], [], str.substr(1)];
+  }
+}
+
+function startTree(nString) {
+  let teste = makeTree1 (nString);
+  var cy = window.cy = cytoscape({
+    container: document.getElementById('cy'),
+    boxSelectionEnabled: false,
+    autounselectify: true,
+    layout: {
+      name: 'dagre'
+    },
+    style: [
+      {
+        selector: 'node[name]',
+        style: {
+          'content': 'data(name)',
+          'width': '40px',
+          'height': '40px',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'text-size': '20px'
+        }
+      },
+      {
+        selector: 'node',
+        style: {
+          'background-color': 'white'
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 4,
+          'target-arrow-shape': 'triangle',
+          'line-color': '#9dbaea',
+          'target-arrow-color': '#9dbaea',
+          'curve-style': 'bezier'
+        }
+      }
+    ],
+    elements: {
+      nodes: teste[1],
+      edges: teste[2]
+    }
+  });
+
 }
 
 
@@ -337,6 +431,29 @@ function paintNode1 (node, color) {
     })
     .update()
 }
+
+function makeTreeNode (nm)  {
+  var  verify = cy.getElementById (nm);
+  var newId = 'n' + number;
+  console.log (newId);
+  if (verify.length < 1) { 
+    cy.add({
+      data: { id: newId, name: nm }
+    });
+  };
+  cy.fit();
+};
+
+function makeTreeEdge (first, second)  {
+  var getEdge = cy.getElementById(nId);
+
+  if (getEdge.length  == 0) {
+    cy2.add({
+      data: { source: first, target: second }
+    });
+  }
+  cy.fit();
+};
 
 
 

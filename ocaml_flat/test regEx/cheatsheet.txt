@@ -1,0 +1,11 @@
+
+"(a+( b(c+d)+y ))v*e"
+
+RegularExpressionTests
+seq: a+b(c+d)+y, v*e
+seq: v*, e
+str: v
+pls: a, b(c+d)+y
+pls: b(c+d), y
+seq: b, c+d
+pls: c, d

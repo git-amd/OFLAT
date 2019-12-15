@@ -39,7 +39,7 @@ let script_uri =
   Eliom_content.Html.D.make_uri
       ~absolute:false   (* We want local file *)
       ~service:(Eliom_service.static_dir ())
-      ["painting3.js"]
+      ["painting5.js"]
 
 
 let script_uri1 =
@@ -74,6 +74,28 @@ let script_uri5 =
           Eliom_parameter.(suffix (all_suffix "suff")))
      ())
     ["cytoscape-edgehandles.js"]
+
+    let script_uri8 =
+  Eliom_content.Html.D.make_uri
+  (Eliom_service.extern
+     ~prefix:"https://unpkg.com"
+     ~path:["dagre@0.7.4"; "dist"]
+     ~meth:
+       (Eliom_service.Get
+          Eliom_parameter.(suffix (all_suffix "suff")))
+     ())
+    ["dagre.js"]
+
+  let script_uri9 =
+  Eliom_content.Html.D.make_uri
+  (Eliom_service.extern
+     ~prefix:"https://cytoscape.org"
+     ~path:["cytoscape.js-dagre"]
+     ~meth:
+       (Eliom_service.Get
+          Eliom_parameter.(suffix (all_suffix "suff")))
+     ())
+    ["cytoscape-dagre.js"]
 
       let lincs_service =
   Eliom_content.Html.D.a
@@ -168,6 +190,9 @@ module Graphics
     let startGraph1 () =   
         JS.exec ("start2()")
 
+    let startGraph2 (nString) =   
+        JS.exec ("startTree('" ^ nString ^ "')")
+
     let destroyGraph () =   
         JS.exec ("destroy1()")
 
@@ -244,7 +269,7 @@ module rec FiniteAutomatonAnimation : sig
       method back: unit
       method drawExample: unit
       method drawExample1: unit
-      method initialNode: bool -> FiniteAutomatonAnimation.model
+      method initialNode: OCamlFlat.state -> bool -> FiniteAutomatonAnimation.model
       method newNode: state -> bool -> FiniteAutomatonAnimation.model
       method newTransition: state * symbol * state -> FiniteAutomatonAnimation.model
       method productivePainting: unit
@@ -259,6 +284,7 @@ module rec FiniteAutomatonAnimation : sig
       method getColors:int
       method drawMinimize: string array -> int -> unit
       method inputNodesPainting: string array -> int -> unit
+      method checkEnumeration : Enumeration.enum -> bool
 
 		  end
 end
@@ -299,7 +325,7 @@ end
         Graphics.paintNode1 state color
 
   let getMinStates list color = 
-    List.iter (fun el -> paintMinimization el color) list
+    Set.iter (fun el -> paintMinimization el color) list
 
   let rec intersection l1 l2 =
      match l1 with
@@ -307,7 +333,7 @@ end
       | x::xs -> (if List.mem x l2 then [x] else []) @ intersection xs l2
 
   let iterateList meth list =
-  List.iter (fun el -> (meth el) ) list
+    List.iter (fun el -> (meth el) ) list
 
   let cut s = (String.get s 0, String.sub s 1 ((String.length s)-1)) ;;
     
@@ -324,6 +350,17 @@ end
 
   let rec delay n = if n = 0 then Lwt.return ()
                                   else Lwt.bind (Lwt.pause()) (fun () -> delay (n-1))
+  
+  let transitionGet3 trns = Set.map ( fun (_,_,c) -> c ) trns
+  
+  let nextEpsilon1 st ts =
+        let trns = Set.filter (fun (a,b,c) -> st = a && b = epsilon) ts in
+        let nextStates = transitionGet3 trns in	
+			Set.add st nextStates 
+
+  let rec closeEmpty sts t = 
+		let ns = Set.flatMap (fun st -> nextEpsilon1 st t) sts in
+			if (Set.subset ns sts) then ns else closeEmpty (Set.union sts ns) t 
 
   class model (arg: FiniteAutomaton.t JSon.alternatives) =
 		object(self) inherit FiniteAutomaton.model arg as super
@@ -350,24 +387,24 @@ end
             done)
 
       method inputNodes  = 
-        List.iter (fun el -> (Graphics.createNode el (el = self#representation.initialState) (List.mem el self#representation.acceptStates)) ) self#representation.allStates
+        Set.iter (fun el -> (Graphics.createNode el (el = self#representation.initialState) (Set.belongs el self#representation.acceptStates)) ) self#representation.allStates
 
       method inputNodes1  = 
-        List.iter (fun el -> (Graphics.createNode1 el (el = self#representation.initialState) (List.mem el self#representation.acceptStates)) ) self#representation.allStates
+        Set.iter (fun el -> (Graphics.createNode1 el (el = self#representation.initialState) (Set.belongs el self#representation.acceptStates)) ) self#representation.allStates
 
       method inputNodesPainting colors number = 
-        let listStates = self#representation.allStates in 
+        let listStates = Set.toList self#representation.allStates in 
         for i=0 to number-1 do
           let newState = List.nth listStates i in 
-          Graphics.createNode1 newState (newState = self#representation.initialState) (List.mem newState self#representation.acceptStates);
+          Graphics.createNode1 newState (newState = self#representation.initialState) (Set.belongs newState self#representation.acceptStates);
           let color = Array.get colors i in
           paintMinimized newState color
         done
       
 
-      method inputEdges  = List.iter (fun el -> (Graphics.createEdge el) ) self#representation.transitions
+      method inputEdges  = Set.iter (fun el -> (Graphics.createEdge el) ) self#representation.transitions
 
-      method inputEdges1  = List.iter (fun el -> (Graphics.createEdge1 el) ) self#representation.transitions
+      method inputEdges1  = Set.iter (fun el -> (Graphics.createEdge1 el) ) self#representation.transitions
 
       method paint state length final = 
             if (length != 0) then 
@@ -380,7 +417,7 @@ end
 
       method paintStates length states = 
               Graphics.resetStyle();
-              List.iter (fun el -> self#paint el length (List.mem el self#representation.acceptStates)) states
+              Set.iter (fun el -> self#paint el length (Set.belongs el self#representation.acceptStates)) states
 
       method accept3 (w: word) =
         let nextEpsilon1 st t =
@@ -401,15 +438,14 @@ end
 						
           let rec accept2X sts w t =
             match w with
-              [] -> Lwt.bind (delay 100) (fun () -> Lwt.bind (Lwt.return (self#paintStates (List.length w) sts)) (fun () -> Lwt.return ((Set.inter sts self#representation.acceptStates) <> [])))
+              [] -> Lwt.bind (delay 100) (fun () -> Lwt.bind (Lwt.return (self#paintStates (List.length w) sts)) (fun () -> Lwt.return ((Set.inter sts self#representation.acceptStates) <> Set.empty)))
               |x::xs -> Lwt.bind (delay 50) (fun () -> Lwt.bind (Lwt.return (self#paintStates (List.length w) sts)) (fun () -> accept2X (transition sts x t) xs t)) in
 						
-          let i = Set.add self#representation.initialState
-                  (nextEpsilons [self#representation.initialState] self#representation.transitions) in
+          let i = closeEmpty (Set.make [self#representation.initialState]) self#representation.transitions in
                   accept2X i w self#representation.transitions
 
       method startAccept =
-        steps <- Array.make 1000 [];
+        steps <- Array.make 1000 Set.empty;
         position <- 0;
         
         let nextEpsilon1 st t =
@@ -420,10 +456,9 @@ end
 					let ns = Set.flatMap (fun nst -> nextEpsilon1 nst t) currsts in
 						if (Set.subset ns currsts) then ns else nextEpsilons (Set.union currsts ns) t in
 
-        let i = Set.add self#representation.initialState
-                  (nextEpsilons [self#representation.initialState] self#representation.transitions) in
-                  steps.(position) <- i;
-                  self#paintStates ((List.length !sentence) - position) (Array.get steps position); self#changeSentence ();
+        let i = closeEmpty (Set.make [self#representation.initialState]) self#representation.transitions in
+                Array.set steps position i;
+                self#paintStates ((List.length !sentence) - position) (Array.get steps position); self#changeSentence ();
                   
       method next =
         position <- position + 1;
@@ -469,22 +504,22 @@ end
         self#inputNodesPainting colors number;
         self#inputEdges1
 
-      method initialNode final = 
+      method initialNode node final = 
       if final then
         (new FiniteAutomatonAnimation.model (Representation {
-          alphabet = [];
-	        allStates = ["START"]; 
-          initialState = "START";
-          transitions = [];
-          acceptStates = ["START"]
+          alphabet = Set.empty;
+	        allStates = Set.make [node]; 
+          initialState = node;
+          transitions = Set.empty;
+          acceptStates = Set.make [node]
         }))  
       else
         (new FiniteAutomatonAnimation.model (Representation {
-          alphabet = [];
-	        allStates = ["START"]; 
-          initialState = "START";
-          transitions = [];
-          acceptStates = []
+          alphabet = Set.empty;
+	        allStates = Set.make [node]; 
+          initialState = node;
+          transitions = Set.empty;
+          acceptStates = Set.empty
         }))
         
 
@@ -493,7 +528,7 @@ end
           if final then
           new FiniteAutomatonAnimation.model (Representation{  
             alphabet = rep.alphabet;
-	          allStates = rep.allStates @ [node];
+	          allStates = Set.add node rep.allStates;
             initialState = rep.initialState;
             transitions = rep.transitions;
             acceptStates = rep.acceptStates
@@ -501,35 +536,35 @@ end
           else 
             new FiniteAutomatonAnimation.model (Representation{
             alphabet = rep.alphabet;
-	          allStates = rep.allStates @ [node];
+	          allStates = Set.add node rep.allStates;
             initialState = rep.initialState;
             transitions = rep.transitions;
-            acceptStates = rep.acceptStates @ [node]
+            acceptStates = Set.add node rep.acceptStates
             })
 
       method newTransition (a, b, c) = 
       let rep: t = self#representation in 
         new FiniteAutomatonAnimation.model (Representation{
-            alphabet = rep.alphabet @ [b];
+            alphabet = Set.add b rep.alphabet;
 	          allStates = rep.allStates;
             initialState = rep.initialState;
-            transitions = rep.transitions @ [(a, b , c)];
+            transitions = Set.add (a, b , c) rep.transitions;
             acceptStates = rep.acceptStates
       })
 
       method getColors:int =
-        List.length self#equivalencePartition
+        Set.size self#equivalencePartition
 
       method paintMinimization colors: unit = 
           let number = self#getColors in
-          let listEquivalence = self#equivalencePartition in
+          let listEquivalence = Set.toList self#equivalencePartition in
           for i=0 to number-1 do 
             getMinStates (List.nth listEquivalence i) (Array.get colors i)
           done
 
 
       method productivePainting =
-        let list1 = self#productive in
+        let list1 = Set.toList self#productive in
           let _ = JS.alert (List.length list1) in 
           let string_of_words l = String.concat ", " l in
             let blah = string_of_words list1 in
@@ -537,10 +572,10 @@ end
         iterateList paintProductive list1
 
       method reachablePainting =
-      iterateList paintReachable (self#reachable ("START"))
+      iterateList paintReachable (Set.toList (self#reachable ("START")))
 
       method usefulPainting =
-        let intre = intersection self#productive (self#reachable "START") in
+        let intre = intersection (Set.toList self#productive) (Set.toList (self#reachable "START")) in
         iterateList paintUseful intre 
 
       method stringAsList1 s = stringAsList s
@@ -567,10 +602,10 @@ end
         new FiniteAutomatonAnimation.model (Representation rep) 
 
       method numberStates: int =
-        List.length self#representation.allStates
+        Set.size self#representation.allStates
 
       method numberTransitions: int =
-        List.length self#representation.transitions
+        Set.size self#representation.transitions
 							
     end
 
@@ -579,10 +614,10 @@ end
 module FiniteAutomatonExamples =
   struct
     let example1DFA = new FiniteAutomatonAnimation.model (Representation {
-      alphabet = ['a'; 'b'; 'c'; 'd'];
-	    allStates = ["START"; "A"; "AB"; "SUCCESS"]; 
+      alphabet = Set.make ['a'; 'b'; 'c'; 'd'];
+	    allStates = Set.make ["START"; "A"; "AB"; "SUCCESS"]; 
       initialState = "START";
-      transitions = [
+      transitions = Set.make [
             ("START",'a',"A"); ("START",'b',"START"); ("START",'c',"START");
                                                       ("START",'d',"START");
             ("A",'a',"A"); ("A",'b',"AB"); ("A",'c',"START"); ("A",'d',"START"); 
@@ -591,47 +626,47 @@ module FiniteAutomatonExamples =
             ("SUCCESS",'a',"SUCCESS"); ("SUCCESS",'b',"SUCCESS");
                          ("SUCCESS",'c',"SUCCESS"); ("SUCCESS",'d',"SUCCESS")
         ];
-      acceptStates = ["SUCCESS"]
+      acceptStates = Set.make ["SUCCESS"]
     })
 
     let example2NFA = 
       let rep = example1DFA#representation in 
       new FiniteAutomatonAnimation.model (Representation {
-      alphabet = rep.alphabet@ ['e'];
-	    allStates = rep.allStates @ ["UNREACHABLE"; "UNPRODUCTIVE"];
+      alphabet = Set.add 'e' rep.alphabet;
+	    allStates = Set.union rep.allStates (Set.make ["UNREACHABLE"; "UNPRODUCTIVE"]);
       initialState = rep.initialState;
-      transitions = rep.transitions @ [("A",'a',"AB"); ("UNREACHABLE", 'a', "SUCCESS"); 
-                                               ("SUCCESS", 'e', "UNPRODUCTIVE"); ("UNPRODUCTIVE", 'a', "UNPRODUCTIVE")];
+      transitions = Set.union rep.transitions (Set.make [("A",'a',"AB"); ("UNREACHABLE", 'a', "SUCCESS"); 
+                                               ("SUCCESS", 'e', "UNPRODUCTIVE"); ("UNPRODUCTIVE", 'a', "UNPRODUCTIVE")]);
       acceptStates = rep.acceptStates
     })
 
     let example2DFA = new FiniteAutomatonAnimation.model (Representation {
-      alphabet = ['a'; 'b'];
-	    allStates = ["START"; "A"; "B"; "C"]; 
+      alphabet = Set.make ['a'; 'b'];
+	    allStates = Set.make ["START"; "A"; "B"; "C"]; 
       initialState = "START";
-      transitions = [("START", 'a', "A"); ("A", 'b', "B"); ("B", 'a', "C"); ("C", 'b', "B");
+      transitions = Set.make [("START", 'a', "A"); ("A", 'b', "B"); ("B", 'a', "C"); ("C", 'b', "B");
                    ("C", 'a', "A")
         ];
-      acceptStates = ["START"; "B"; "C"]
+      acceptStates = Set.make ["START"; "B"; "C"]
     })
 
     let example3DFA = new FiniteAutomatonAnimation.model (Representation {
-      alphabet = ['0'; '1'];
-	    allStates = ["START"; "1"; "2"; "3"]; 
+      alphabet = Set.make ['0'; '1'];
+	    allStates = Set.make ["START"; "1"; "2"; "3"]; 
       initialState = "START";
-      transitions = [("START", '1', "1"); ("1", '1', "START"); ("1", '0', "2"); ("2", '0', "1");
+      transitions = Set.make [("START", '1', "1"); ("1", '1', "START"); ("1", '0', "2"); ("2", '0', "1");
                    ("2", '1', "3"); ("3", '1', "2"); ("3", '0', "START"); ("START", '0', "3")
         ];
-      acceptStates = ["1"]
+      acceptStates = Set.make ["1"]
     })
 
     let example1NFA = new FiniteAutomatonAnimation.model (Representation {
-      alphabet = ['a'; 'b'];
-	    allStates = ["START"; "A"; "B"]; 
+      alphabet = Set.make ['a'; 'b'];
+	    allStates = Set.make ["START"; "A"; "B"]; 
       initialState = "START";
-      transitions = [("START", 'a', "A"); ("A", 'b', "B"); ("A", 'b', "START"); ("B", 'a', "START")
+      transitions = Set.make [("START", 'a', "A"); ("A", 'b', "B"); ("A", 'b', "START"); ("B", 'a', "START")
         ];
-      acceptStates = ["START"]
+      acceptStates = Set.make ["START"]
     })
 
   end 
@@ -653,20 +688,22 @@ module Controller =
   struct
 
     let automata = ref (new FiniteAutomatonAnimation.model (Representation {
-      alphabet = [];
-	    allStates = ["START"]; 
+      alphabet = Set.empty;
+	    allStates = Set.make ["START"]; 
       initialState = "START";
-      transitions = [];
-      acceptStates = []
+      transitions = Set.empty;
+      acceptStates = Set.empty
     }))
 
     let automata1 = ref (new FiniteAutomatonAnimation.model (Representation {
-      alphabet = [];
-	    allStates = ["START"]; 
+      alphabet = Set.empty;
+	    allStates = Set.make ["START"]; 
       initialState = "START";
-      transitions = [];
-      acceptStates = []
+      transitions = Set.empty;
+      acceptStates = Set.empty
     }))
+
+    let re = ref (new RegularExpression.model (Representation Empty))
 
     let listColors = [|"Red"; "Yellow"; "Cyan"; "Green"; "Indigo"; "Blue"; "Magenta"; "Sienna"; "Violet"; "Orange"; "Lime"; "Teal"; "SteelBlue"; "Silver"; "Olive"; "Salmon"; "Crimson"; "Purple"; "DarkKhaki"; "PowderBlue"|]
     let listColorsBig: string array ref = ref [||]
@@ -695,7 +732,7 @@ module Controller =
             (let minimal = Js_of_ocaml.Js.string ("O autómato não tem estados inúteis.") in 
             isminimal##.innerHTML := minimal)
           else 
-          (let useless = !automata#getUselessStates in
+          (let useless = Set.toList !automata#getUselessStates in
             let number = List.length useless in 
               let string_of_words l = String.concat ", " l in
                 let blah = string_of_words useless in
@@ -722,6 +759,7 @@ module Controller =
       let info = Dom_html.getElementById "complete" in
         info##.style##.width:= Js_of_ocaml.Js.string "0%";
         info##.innerHTML := Js_of_ocaml.Js.string "";
+      cy##.innerHTML := Js_of_ocaml.Js.string "";
       Graphics.destroyGraph();
       Graphics.startGraph();
       automata := example;
@@ -731,6 +769,31 @@ module Controller =
       gethasuselessStates();
       getNumberStates();
       getNumberTransitions()
+
+    let rec func (re: RegExpSyntax.t) = 
+      match re with
+        | Plus (l, r) -> "+" ^ func l ^ func r
+        | Seq (l, r) -> "." ^ func l ^ func r
+        | Star (re) -> "*" ^ func re
+        | Symb (b) -> String.make 1 b
+        | Empty -> "E"
+        | Zero -> "Z"
+
+    let defineRegularExpression example =
+      let cy = Dom_html.getElementById "cy" in
+      cy##.style##.width:= Js_of_ocaml.Js.string "99%";
+      let cy2 = Dom_html.getElementById "cy2" in
+      cy2##.style##.width:= Js_of_ocaml.Js.string "0%";
+      let info = Dom_html.getElementById "complete" in
+        info##.style##.width:= Js_of_ocaml.Js.string "0%";
+        info##.innerHTML := Js_of_ocaml.Js.string "";
+      re := example;
+      let test1 = func (!re#representation) in 
+      JS.alert (Js_of_ocaml.Js.string test1);
+      Graphics.destroyGraph();
+      let test = RegExpSyntax.toString !re#representation in
+        cy##.innerHTML := Js_of_ocaml.Js.string test;
+      Graphics.startGraph2(test1)
 
     let setColor () =
       let number = !automata#getColors in
@@ -799,7 +862,7 @@ module Controller =
         automata1 := !automata#toDeterministic1;
         !automata1#drawExample1)
 
-    let createInitialNode isStart isFinal = 
+    let createInitialNode node isStart isFinal = 
       let cy = Dom_html.getElementById "cy" in
       cy##.style##.width:= Js_of_ocaml.Js.string "99%";
       let cy2 = Dom_html.getElementById "cy2" in
@@ -807,10 +870,10 @@ module Controller =
       let info = Dom_html.getElementById "complete" in
       info##.style##.width:= Js_of_ocaml.Js.string "0%";
       info##.innerHTML := Js_of_ocaml.Js.string "";
-      automata := !automata#initialNode isFinal;
+      automata := !automata#initialNode node isFinal;
       Graphics.destroyGraph ();
       Graphics.startGraph ();
-      Graphics.createNode "START" isStart isFinal;
+      Graphics.createNode node isStart isFinal;
       getDeterminim();
       getminimism();
       gethasuselessStates();
@@ -825,19 +888,28 @@ module Controller =
       let info = Dom_html.getElementById "complete" in
       info##.style##.width:= Js_of_ocaml.Js.string "0%";
       info##.innerHTML := Js_of_ocaml.Js.string "";
-      ignore (automata := !automata#newNode node isFinal);
-      Graphics.createNode node isStart isFinal;
-      getDeterminim();
-      getminimism();
-      gethasuselessStates();
-      getNumberStates();
-      getNumberTransitions()
+      if (node = "") then
+        JS.alert ("O estado não tem nome. Indique um na caixa de texto.")
+      else 
+        if (Set.belongs node !automata#representation.allStates) then 
+          JS.alert ("O estado " ^ node ^ " já existe!")
+        else 
+          (ignore (automata := !automata#newNode node isFinal);
+          Graphics.createNode node isStart isFinal;
+          getDeterminim();
+          getminimism();
+          gethasuselessStates();
+          getNumberStates();
+          getNumberTransitions())
     
     let createTransition (v1, c3, v2) =
-      if (List.mem v1 !automata#representation.allStates) != true then
+      if (Set.belongs (v1, c3, v2) !automata#representation.transitions) then
+        JS.alert ("A transição (" ^ v1 ^ ", " ^ String.make 1 c3 ^ ", " ^ v2 ^ ") já existe!") 
+      else 
+      (if (Set.belongs v1 !automata#representation.allStates) != true then
             JS.alert ("O estado de partida não existe!")
           else 
-            if (List.mem v2 !automata#representation.allStates) != true then
+            if (Set.belongs v2 !automata#representation.allStates) != true then
               JS.alert ("O estado de chegada não existe!")
             else 
               ((ignore (automata := !automata#newTransition (v1, c3, v2)));
@@ -846,7 +918,7 @@ module Controller =
       getminimism();
       gethasuselessStates();
       getNumberStates();
-      getNumberTransitions())
+      getNumberTransitions()))
 
     let paintAllProductives () =
       Graphics.resetStyle();
@@ -877,16 +949,21 @@ module Controller =
     let getNewSentence () = 
       Js_of_ocaml.Js.string !automata#newSentence1
 
-    let createAutomataText texto = 
+    let createText texto = 
       let txt = Js_of_ocaml.Js.to_string texto in
       let j = JSon.from_string txt in
 			let kind = JSon.field_string j "kind" in
-				if FiniteAutomaton.modelDesignation () = kind then
+				if FiniteAutomaton.modelDesignation() = kind then
 					(let fa = new FiniteAutomatonAnimation.model (JSon j) in 
-          defineExample fa)
+          defineExample fa;
+          JS.alert "olaaaaa")
 				else
-					(let fa = new FiniteAutomatonAnimation.model (JSon j) in 
-          defineExample fa)
+          if RegularExpression.modelDesignation() = kind then
+            (let re = new RegularExpression.model (JSon j) in 
+            defineRegularExpression re)
+          else 
+					  (let fa = new FiniteAutomatonAnimation.model (JSon j) in 
+            defineExample fa)
     
     let isDeterministic () =
       !automata#isDeterministic
@@ -950,7 +1027,7 @@ let%client fileWidgetCanceled () =
 	JS.alert "Canceled"
 
 let%client fileWidgetAction txt =
-	Controller.createAutomataText txt;
+	Controller.createText txt;
   Controller.printErrors ()
 
 let%client onFileLoad e =
@@ -1038,23 +1115,38 @@ let inputBox = input ~a:[a_id "box"; a_input_type `Text]()
 let generate =
 
    let onclick_handler4 = [%client (fun _ ->
-      Controller.createInitialNode true false
+      let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
+      let v = Js_of_ocaml.Js.to_string i##.value in
+      if (v = "") then 
+        Controller.createInitialNode "START" true false
+      else 
+        Controller.createInitialNode v true false;
+        i##.value:= Js_of_ocaml.Js.string ""
   )] in 
   let button4 = button ~a:[a_onclick onclick_handler4] [txt "Adicionar estado inicial"] in
   let onclick_handler5 = [%client (fun _ ->
-    Controller.createInitialNode true true
+    let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
+      let v = Js_of_ocaml.Js.to_string i##.value in
+      if (v = "") then 
+        Controller.createInitialNode "START" true true
+      else 
+        Controller.createInitialNode v true true;
+        i##.value:= Js_of_ocaml.Js.string ""
   )] in 
   let button5 = button ~a:[a_onclick onclick_handler5] [txt "Adicionar estado inicial como final"] in
   let onclick_handler2 = [%client (fun _ ->
     let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
     let v = Js_of_ocaml.Js.to_string i##.value in
-      Controller.createNode v false false
+      Controller.createNode v false false;
+      i##.value:= Js_of_ocaml.Js.string ""
   )] in
   let button2 = button ~a:[a_onclick onclick_handler2] [txt "Adicionar estado"] in
   let onclick_handler6 = [%client (fun _ ->
     let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
     let v = Js_of_ocaml.Js.to_string i##.value in
-      Controller.createNode v false true
+      Controller.createNode v false true;
+      i##.value:= Js_of_ocaml.Js.string ""
+
   )] in
   let button6 = button ~a:[a_onclick onclick_handler6] [txt "Adicionar estado final"] in
   let onclick_handler3 = [%client (fun _ ->
@@ -1067,7 +1159,8 @@ let generate =
         let c2 = List.nth listOfThings 2 in 
         let c3 = List.nth listOfThings 1 in
           let c4 = String.get c3 0 in
-          Controller.createTransition (c1, c4, c2)
+          Controller.createTransition (c1, c4, c2);
+          i1##.value:= Js_of_ocaml.Js.string ""
   )] in
   let button3 = button ~a:[a_onclick onclick_handler3] [txt "Adicionar Transição"] in
   div ~a:[a_class ["box1"]] [button4; button5; div ~a:[a_id "space"][button2; button6]; div [button3]]
@@ -1133,7 +1226,7 @@ let generateWords_handler =
           let i = (Eliom_content.Html.To_dom.of_textarea ~%zz) in
           let v = Js_of_ocaml.Js.to_string k##.value in
             let size = int_of_string v in
-          let test = Controller.getWords size in
+          let test = Set.toList (Controller.getWords size) in
             let string_of_word w = "' " ^ String.concat "" (List.map (String.make 1) w) ^ " '" in
             let string_of_words l = String.concat ", " (List.map string_of_word l) in 
               let res = string_of_words test in
@@ -1206,6 +1299,8 @@ let () =
             (head (title (txt "Autómatos Animados")) [script ~a:[a_src script_uri1] (txt ""); 
                                                       script ~a:[a_src script_uri5] (txt "");
                                                       script ~a:[a_src script_uri7] (txt ""); 
+                                                      script ~a:[a_src script_uri8] (txt ""); 
+                                                      script ~a:[a_src script_uri9] (txt ""); 
                                                       css_link ~uri: (make_uri (Eliom_service.static_dir ()) ["codecss.css"]) ();
                                                       script ~a:[a_src script_uri] (txt "");
                                                     ])
@@ -1232,7 +1327,7 @@ let () =
                     div ~a:[a_class ["main"]][
                         div ~a: [a_id "mainTitle"] [h1 [txt "Autómatos Animados"]];
                         div ~a: [a_class ["test"]][
-                        div ~a:[a_id "cy"] [];
+                        div ~a:[a_id "cy"] [p ~a: [a_id "regExp"] []];
                         div ~a:[a_id "cy2"] [];
                         pre ~a:[a_id "complete"][];
                         div ~a:[a_id "infoBox"][

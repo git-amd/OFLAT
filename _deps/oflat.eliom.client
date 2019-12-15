@@ -1,4 +1,2 @@
-_client/oflat.cmo : _client/OCamlFlatSupport.cmo _client/OCamlFlat.cmo
-_client/oflat.cmx : _client/OCamlFlatSupport.cmx _client/OCamlFlat.cmx
-_client/oflat.cmo : _server/oflat.type_mli
-_client/oflat.cmx : _server/oflat.type_mli
+_client/oflat.cmo :
+_client/oflat.cmx :
