@@ -1,1 +1,2 @@
 Dec  5 11:21:57: ocsigen:main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/oflat/oflat.cma: Yojson.Json_error("Blank input data")
+Dec 15 18:05:15: ocsigen:main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/oflat/oflat.cma: Yojson.Json_error("Blank input data")

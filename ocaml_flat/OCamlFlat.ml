@@ -1348,7 +1348,7 @@ and (*module*) RegularExpressionTests: sig
 end
 =
 struct
-	let active = true
+	let active = false
 
 	let test0 () =
 		let m = Model.loadModel "test regEx/re_abc.json" in

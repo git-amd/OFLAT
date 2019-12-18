@@ -1,2 +1,5 @@
-_server/oflat.cmo :
-_server/oflat.cmx :
+_server/oflat.cmo : _server/OCamlFlatSupport.cmo _server/OCamlFlat.cmo
+_server/oflat.cmx : _server/OCamlFlatSupport.cmx _server/OCamlFlat.cmx
+_server/oflat.type_mli : _server/OCamlFlatSupport.cmo _server/OCamlFlat.cmo
+_server/oflat.cmo : _server/oflat.type_mli
+_server/oflat.cmx : _server/oflat.type_mli

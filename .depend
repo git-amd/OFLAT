@@ -1,11 +1,16 @@
-_server/oflat.cmo :
-_server/oflat.cmx :
+_server/oflat.cmo : _server/OCamlFlatSupport.cmo _server/OCamlFlat.cmo
+_server/oflat.cmx : _server/OCamlFlatSupport.cmx _server/OCamlFlat.cmx
+_server/oflat.type_mli : _server/OCamlFlatSupport.cmo _server/OCamlFlat.cmo
+_server/oflat.cmo : _server/oflat.type_mli
+_server/oflat.cmx : _server/oflat.type_mli
 _server/OCamlFlat.cmo : _server/OCamlFlatSupport.cmo
 _server/OCamlFlat.cmx : _server/OCamlFlatSupport.cmx
 _server/OCamlFlatSupport.cmo :
 _server/OCamlFlatSupport.cmx :
-_client/oflat.cmo :
-_client/oflat.cmx :
+_client/oflat.cmo : _client/OCamlFlatSupport.cmo _client/OCamlFlat.cmo
+_client/oflat.cmx : _client/OCamlFlatSupport.cmx _client/OCamlFlat.cmx
+_client/oflat.cmo : _server/oflat.type_mli
+_client/oflat.cmx : _server/oflat.type_mli
 _client/OCamlFlat.cmo : _client/OCamlFlatSupport.cmo
 _client/OCamlFlat.cmx : _client/OCamlFlatSupport.cmx
 _client/OCamlFlatSupport.cmo :

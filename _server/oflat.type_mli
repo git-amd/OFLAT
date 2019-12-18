@@ -21,6 +21,23 @@ val _eliom_fragment_pAMgVd1 : unit Eliom_client_value.t option ref
 val _eliom_escaped_ident_1 :
   [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val fileWidgetMake : unit -> [> Html_types.input ] Eliom_content.Html.D.elt
+val _eliom_fragment_pAMgVd31 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_escaped_ident_17 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd30 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd29 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd28 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
+val _eliom_fragment_pAMgVd27 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
 val _eliom_fragment_pAMgVd26 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
@@ -36,16 +53,20 @@ val _eliom_fragment_pAMgVd23 :
 val _eliom_fragment_pAMgVd22 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
+val _eliom_escaped_ident_16 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_escaped_ident_15 :
+  [> Html_types.textarea ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd21 :
-  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
-  Eliom_client_value.t option ref
-val _eliom_fragment_pAMgVd20 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
 val _eliom_escaped_ident_14 :
   [> Html_types.input ] Eliom_content.Html.D.elt option ref
+val _eliom_fragment_pAMgVd20 :
+  (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+  Eliom_client_value.t option ref
 val _eliom_escaped_ident_13 :
-  [> Html_types.textarea ] Eliom_content.Html.D.elt option ref
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd19 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
@@ -59,22 +80,22 @@ val _eliom_escaped_ident_11 :
 val _eliom_fragment_pAMgVd17 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
-val _eliom_escaped_ident_10 :
-  [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd16 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
-val _eliom_escaped_ident_9 :
-  [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd15 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
 val _eliom_fragment_pAMgVd14 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
+val _eliom_escaped_ident_10 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd13 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
+val _eliom_escaped_ident_9 :
+  [> Html_types.input ] Eliom_content.Html.D.elt option ref
 val _eliom_fragment_pAMgVd12 :
   (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
   Eliom_client_value.t option ref
@@ -165,4 +186,16 @@ module HtmlPage :
       (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
       Eliom_client_value.t
     val closeInfo : [> Html_types.button ] Eliom_content.Html.D.elt
+    val changeToTopBottom_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val changeToTopBottom : [> Html_types.button ] Eliom_content.Html.D.elt
+    val changeToLeftRight_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val changeToLeftRight : [> Html_types.button ] Eliom_content.Html.D.elt
+    val defineRegExp_handler :
+      (Js_of_ocaml.Dom_html.mouseEvent Js_of_ocaml.Js.t -> unit)
+      Eliom_client_value.t
+    val defineRegExp : [> Html_types.button ] Eliom_content.Html.D.elt
   end

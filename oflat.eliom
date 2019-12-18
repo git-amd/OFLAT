@@ -174,12 +174,18 @@ module Graphics
     let createEdge (f, s, t) = 
         JS.exec ("makeEdge('" ^ f ^ "', '" ^ t ^ "', '" ^ (String.make 1 s) ^ "')")
 
+    let eliminateEdge (f, s, t) = 
+        JS.exec ("removeEdge('" ^ f ^ "', '" ^ t ^ "', '" ^ (String.make 1 s) ^ "')")
+
     let createEdge1 (f, s, t) = 
         JS.exec ("makeEdge2('" ^ f ^ "', '" ^ t ^ "', '" ^ (String.make 1 s) ^ "')")
 
     let createNode node isStart isFinal =
         JS.log ("isStart = " ^ string_of_bool (isStart));
         JS.exec ("makeNode('" ^ node ^ "', '" ^ string_of_bool (isStart) ^ "', '" ^ string_of_bool (isFinal) ^ "')")
+
+    let eliminateNode node =
+        JS.exec ("removeNode('" ^ node ^ "')")
 
     let createNode1 node isStart isFinal =
         JS.exec ("makeNode2('" ^ node ^ "', '" ^ string_of_bool (isStart) ^ "', '" ^ string_of_bool (isFinal) ^ "')")
@@ -208,7 +214,12 @@ module Graphics
     let getRandom() = 
         let test = Random.int 16777215 in
         Printf.sprintf "#%06x" test
+    
+    let changeTreeHorizontal () =
+      JS.exec ("changeToHorizontal()")
 
+    let changeTreeVertical () =
+      JS.exec ("changeToVertical ()")
   end
 
 
@@ -271,7 +282,9 @@ module rec FiniteAutomatonAnimation : sig
       method drawExample1: unit
       method initialNode: OCamlFlat.state -> bool -> FiniteAutomatonAnimation.model
       method newNode: state -> bool -> FiniteAutomatonAnimation.model
+      method eliminateNode: OCamlFlat.state -> FiniteAutomatonAnimation.model
       method newTransition: state * symbol * state -> FiniteAutomatonAnimation.model
+      method eliminateTransition: OCamlFlat.state * OCamlFlat.symbol * OCamlFlat.state -> FiniteAutomatonAnimation.model
       method productivePainting: unit
       method reachablePainting: unit
       method usefulPainting: unit
@@ -446,15 +459,7 @@ end
 
       method startAccept =
         steps <- Array.make 1000 Set.empty;
-        position <- 0;
-        
-        let nextEpsilon1 st t =
-          let n = Set.filter (fun (a,b,c) -> st = a && b = epsilon) t in
-                  Set.map ( fun (_,_,d) -> d ) n in			
-				
-				let rec nextEpsilons currsts t = 
-					let ns = Set.flatMap (fun nst -> nextEpsilon1 nst t) currsts in
-						if (Set.subset ns currsts) then ns else nextEpsilons (Set.union currsts ns) t in
+        position <- 0;	
 
         let i = closeEmpty (Set.make [self#representation.initialState]) self#representation.transitions in
                 Array.set steps position i;
@@ -542,6 +547,16 @@ end
             acceptStates = Set.add node rep.acceptStates
             })
 
+      method eliminateNode  node = 
+        let rep: t = self#representation in 
+          new FiniteAutomatonAnimation.model (Representation{  
+            alphabet = rep.alphabet;
+	          allStates = Set.remove node rep.allStates;
+            initialState = rep.initialState;
+            transitions = rep.transitions;
+            acceptStates = rep.acceptStates
+            })
+
       method newTransition (a, b, c) = 
       let rep: t = self#representation in 
         new FiniteAutomatonAnimation.model (Representation{
@@ -549,6 +564,16 @@ end
 	          allStates = rep.allStates;
             initialState = rep.initialState;
             transitions = Set.add (a, b , c) rep.transitions;
+            acceptStates = rep.acceptStates
+      })
+
+      method eliminateTransition (a, b, c) = 
+        let rep: t = self#representation in 
+        new FiniteAutomatonAnimation.model (Representation{
+            alphabet = Set.remove b rep.alphabet;
+	          allStates = rep.allStates;
+            initialState = rep.initialState;
+            transitions = Set.remove (a, b , c) rep.transitions;
             acceptStates = rep.acceptStates
       })
 
@@ -561,7 +586,6 @@ end
           for i=0 to number-1 do 
             getMinStates (List.nth listEquivalence i) (Array.get colors i)
           done
-
 
       method productivePainting =
         let list1 = Set.toList self#productive in
@@ -689,8 +713,8 @@ module Controller =
 
     let automata = ref (new FiniteAutomatonAnimation.model (Representation {
       alphabet = Set.empty;
-	    allStates = Set.make ["START"]; 
-      initialState = "START";
+	    allStates = Set.make ["NotInitial"]; 
+      initialState = "NotInitial";
       transitions = Set.empty;
       acceptStates = Set.empty
     }))
@@ -794,7 +818,7 @@ module Controller =
       let test = RegExpSyntax.toString !re#representation in
         cy##.innerHTML := Js_of_ocaml.Js.string test;
       Graphics.startGraph2(test1)
-
+      
     let setColor () =
       let number = !automata#getColors in
       if (number <= 20) then 
@@ -894,6 +918,9 @@ module Controller =
         if (Set.belongs node !automata#representation.allStates) then 
           JS.alert ("O estado " ^ node ^ " já existe!")
         else 
+          if (!automata#representation.initialState = "NotInitial") then 
+             JS.alert ("É necessário criar primeiro um estado inicial")
+          else
           (ignore (automata := !automata#newNode node isFinal);
           Graphics.createNode node isStart isFinal;
           getDeterminim();
@@ -901,6 +928,24 @@ module Controller =
           gethasuselessStates();
           getNumberStates();
           getNumberTransitions())
+
+    let eliminateNodeTransitions (a, b, c) node = 
+      JS.log ("Entrei");
+      if (a = node || c = node) then
+        automata:= !automata#eliminateTransition (a, b, c)
+
+    let eliminateNode node =
+      if (node = !automata#representation.initialState) then
+        JS.alert ("Não é possível eliminar estado inicial, recomece a criar o autómato colocando um novo estado inicial!") 
+      else 
+        if (Set.belongs node !automata#representation.allStates) then 
+        ((automata:= !automata#eliminateNode node);
+        Set.iter (fun el -> (eliminateNodeTransitions el node)) !automata#representation.transitions;
+        Graphics.eliminateNode node;
+        getminimism();
+        gethasuselessStates();
+        getNumberStates();
+        getNumberTransitions())
     
     let createTransition (v1, c3, v2) =
       if (Set.belongs (v1, c3, v2) !automata#representation.transitions) then
@@ -915,10 +960,21 @@ module Controller =
               ((ignore (automata := !automata#newTransition (v1, c3, v2)));
               Graphics.createEdge (v1, c3, v2);
               getDeterminim();
-      getminimism();
-      gethasuselessStates();
-      getNumberStates();
-      getNumberTransitions()))
+            getminimism();
+            gethasuselessStates();
+            getNumberStates();
+            getNumberTransitions()))
+
+    let eliminateTransition (v1, c3, v2) =
+      if (Set.belongs (v1, c3, v2) !automata#representation.transitions) then
+        (automata:= !automata#eliminateTransition(v1, c3, v2);
+        Graphics.eliminateEdge (v1, c3, v2);
+        getminimism();
+        gethasuselessStates();
+        getNumberStates();
+        getNumberTransitions())
+      else 
+        JS.alert ("A transição (" ^ v1 ^ ", " ^ String.make 1 c3 ^ ", " ^ v2 ^ ") não existe!") 
 
     let paintAllProductives () =
       Graphics.resetStyle();
@@ -1149,6 +1205,14 @@ let generate =
 
   )] in
   let button6 = button ~a:[a_onclick onclick_handler6] [txt "Adicionar estado final"] in
+  let onclick_handler8 = [%client (fun _ ->
+    let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
+    let v = Js_of_ocaml.Js.to_string i##.value in
+      Controller.eliminateNode v;
+      i##.value:= Js_of_ocaml.Js.string ""
+
+  )] in
+  let button8 = button ~a:[a_onclick onclick_handler8] [txt "Apagar estado"] in
   let onclick_handler3 = [%client (fun _ ->
     let i1 = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
       let split = " " in
@@ -1163,7 +1227,21 @@ let generate =
           i1##.value:= Js_of_ocaml.Js.string ""
   )] in
   let button3 = button ~a:[a_onclick onclick_handler3] [txt "Adicionar Transição"] in
-  div ~a:[a_class ["box1"]] [button4; button5; div ~a:[a_id "space"][button2; button6]; div [button3]]
+  let onclick_handler7 = [%client (fun _ ->
+    let i1 = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
+      let split = " " in
+        let charSplit = String.get split 0 in 
+      let v1 = Js_of_ocaml.Js.to_string i1##.value in
+        let listOfThings = String.split_on_char charSplit v1 in 
+        let c1 = List.nth listOfThings 0 in
+        let c2 = List.nth listOfThings 2 in 
+        let c3 = List.nth listOfThings 1 in
+          let c4 = String.get c3 0 in
+          Controller.eliminateTransition (c1, c4, c2);
+          i1##.value:= Js_of_ocaml.Js.string ""
+  )] in
+  let button7 = button ~a:[a_onclick onclick_handler7] [txt "Apagar Transição"] in
+  div ~a:[a_class ["box1"]] [button4; button5; div ~a:[a_id "space"][button2; button6; button8]; div [button3; button7]]
 
   let evaluate = 
     let onclick_handler45 = [%client (fun _ ->
@@ -1284,6 +1362,31 @@ let infoClose_handler =
 
 let closeInfo = button ~a:[a_onclick infoClose_handler] [txt "Fechar a formatação do Autómato"]
 
+let changeToTopBottom_handler = 
+  [%client (fun _ ->
+        Graphics.changeTreeVertical();
+      )         
+  ]
+let changeToTopBottom = button ~a:[a_onclick changeToTopBottom_handler] [txt "Colocar Árvore na vertical"]
+
+let changeToLeftRight_handler = 
+  [%client (fun _ ->
+        Graphics.changeTreeHorizontal();
+      )         
+  ]
+let changeToLeftRight = button ~a:[a_onclick changeToLeftRight_handler] [txt "Colocar Árvore na horizontal"]
+
+let defineRegExp_handler =
+  [%client (fun _ ->
+        let i = (Eliom_content.Html.To_dom.of_input ~%inputBox) in
+        let v = Js_of_ocaml.Js.to_string i##.value in
+        let re = new RegularExpression.model (Representation (RegExpSyntax.parse v)) in 
+        Controller.defineRegularExpression re;
+        i##.value:= Js_of_ocaml.Js.string ""
+      )         
+  ]
+
+let defineRegExp = button ~a:[a_onclick defineRegExp_handler] [txt "Definir Expressão Regular"]
 
 end
 
@@ -1304,7 +1407,7 @@ let () =
                                                       css_link ~uri: (make_uri (Eliom_service.static_dir ()) ["codecss.css"]) ();
                                                       script ~a:[a_src script_uri] (txt "");
                                                     ])
-            (body [ div ~a:[a_class ["sidenav"]] [
+            (body [div ~a:[a_class ["sidenav"]] [
                       div [h2 ~a: [a_id "title"] [txt "OFLAT"]; p ~a: [a_id "version"][txt "version 1.1"]];
                       div [fileWidgetMake ()];
                       div [HtmlPage.inputBox];
@@ -1320,11 +1423,13 @@ let () =
                         div [HtmlPage.words];
                         div [HtmlPage.completeInfo];
                         div [HtmlPage.closeInfo]])) "underBig";
-                      p ~a: [a_id "underBig"][txt "Expressões Regulares"];
+                      HtmlPage.mywidget "Expressões Regulares" (HtmlPage.hiddenBox2 (div [div [HtmlPage.changeToTopBottom];
+                        div [HtmlPage.changeToLeftRight];
+                       div [HtmlPage.defineRegExp]])) "underBig";
                       p ~a: [a_id "underBig"] [txt "Autómatos de Pilha"];
-                      p ~a: [a_id "underBig"] [txt "Gramáticas Independentes de Contexto"]
+                      p ~a: [a_id "underBig"] [txt "Gramáticas Independentes de Contexto"];                      
                   ];
-                    div ~a:[a_class ["main"]][
+                  div ~a:[a_class ["main"]][
                         div ~a: [a_id "mainTitle"] [h1 [txt "Autómatos Animados"]];
                         div ~a: [a_class ["test"]][
                         div ~a:[a_id "cy"] [p ~a: [a_id "regExp"] []];
@@ -1340,10 +1445,9 @@ let () =
                           p ~a:[a_id "wordTitle"] [txt "Palavras geradas: "];
                           HtmlPage.zz];
                       ]
-                    ];
-					          footer ~a: [a_class ["footer"]] [txt "Desenvolvido em "; lincs_service; txt " dentro do projeto "; factor_service; txt  "/ Financiado por "; tezos_service]
-                  ] 
-            )
+                  ];
+					        footer ~a: [a_class ["footer"]] [txt "Desenvolvido em "; lincs_service; txt " dentro do projeto "; factor_service; txt  "/ Financiado por "; tezos_service]
+            ])
           )    
     )
 

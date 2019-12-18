@@ -1,8 +1,11 @@
 var number = 0;
 
+var cy = null;
+var cy2 = null;
+
 function start () {
   number = 0;
-  var  cy = window.cy = cytoscape({
+  cy = window.cy = cytoscape({
     container: document.getElementById('cy'),
     layout: {
       name: 'grid',
@@ -106,12 +109,13 @@ function makeTree1 (s) {
 
 function startTree(nString) {
   let teste = makeTree1 (nString);
-  var cy = window.cy = cytoscape({
+  cy = window.cy = cytoscape({
     container: document.getElementById('cy'),
     boxSelectionEnabled: false,
     autounselectify: true,
     layout: {
-      name: 'dagre'
+      name: 'dagre',
+      rankDir: 'LR'
     },
     style: [
       {
@@ -148,7 +152,15 @@ function startTree(nString) {
     }
   });
 
-}
+};
+
+function changeToHorizontal () {
+  cy.layout ({name: 'dagre', rankDir: 'LR'}).run()
+};
+
+function changeToVertical () {
+  cy.layout ({name: 'dagre', rankDir: 'TB'}).run()
+};
 
 
 function makeNode (nm, isStart, final)  {
@@ -220,9 +232,45 @@ function makeEdge (first, second, third)  {
   }
 };
 
+function removeNode (node) {
+  var getNode = cy.getElementById(node);
+  getNode.remove();
+}
+
+function removeEdge (first, second, third)  {
+  console.log (first + ", " + second + ", " + third);
+
+  var nId = first + second;
+  var getEdge = cy.getElementById(nId);
+
+  var k = getEdge.data('symbol');
+
+  console.log (k);
+  var g = "";
+  console.log (g.length);
+
+  for (i = 0; i < k.length; i++) {
+    var j = k.charAt (i);
+    if (j != ',' && j != ' ' && j != third) {
+      if (g.length == 0) {
+        g = j;
+      } else {
+        g = g + ', ' + j;
+      }
+    }
+  }
+  getEdge.remove();
+  if (g.length > 0) {
+    cy.add({
+      data: { id: nId, source: first, symbol: g, target: second}
+    })
+  }
+};
+
 function destroy1 () {
   if (cy != null) {
-    cy.destroy1;
+    cy.destroy();
+    cy = null;
   }
 
 };
@@ -289,7 +337,7 @@ function fileSelectAction() {
 }
 
 function start2 () {
-  var  cy2 = window.cy2 = cytoscape({
+  cy2 = window.cy2 = cytoscape({
     container: document.getElementById('cy2'),
     layout: {
       name: 'grid',
@@ -418,8 +466,9 @@ function makeEdge2 (first, second, third)  {
 
 function destroy2 () {
   if (cy2 != null) {
-    cy2.destroy1;
+    cy2.destroy();
   }
+  cy2 = null;
 
 }; 
 
