@@ -846,21 +846,80 @@ struct
 					Set.size representation.allStates = Set.size rep.allStates
 					
 	
+
 			method toRegularExpression =
-			(*
+			
 				let fa = self#toDeterministic in
 				
 				let rep = fa#representation in	
-			*)		
 				
-				 
-			
-			
-			
-				new RegularExpression.model (Representation (RegExpSyntax.parse "ab+c*"))
+				let sts = rep.allStates in
+				let trns = rep.transitions in
+				
+								
+				let rec plusSet reSet =
+					let rec pls l =
+						match l with
+							[] -> RegExpSyntax.Zero
+							| x::xs -> if xs = [] then x else RegExpSyntax.Plus (x, pls xs)
+					in
+						pls (Set.toList reSet)
+				in
+				
+				
+				let calczerok k i j = 
+					let ts = Set.filter (fun (a,_,b) -> i = a && j = b) trns in
+					if ts <> Set.empty then
+						if i <> j then 
+							let res = Set.map (fun (_,c,_) -> RegExpSyntax.Symb c) ts in 
+								(k,i,j,plusSet res)
+								
+						else 
+							let res = Set.map (fun (_,c,_) -> RegExpSyntax.Symb c) ts in 
+							let re = RegExpSyntax.Plus(RegExpSyntax.Empty, (plusSet res)) in
+								(k,i,j,re)
+								
+					else (k,i,j,RegExpSyntax.Zero)
+				in
 				
 				
 				
+				let calck k i j prvK = 
+					let getRij i j = 
+						let r = Set.nth (Set.filter (fun (_,x,y,_) -> x = i && y = j) prvK) 0 in
+							(fun (_,_,_,re) -> re) r
+					in
+					let assembleRe st i j =
+						let rik = getRij i st in
+						let rkk = RegExpSyntax.Star (getRij st st) in
+						let rkj = getRij st j in						
+							RegExpSyntax.Seq(rik, RegExpSyntax.Seq(rkk,rkj)) 
+					in
+					
+					let rij = getRij i j in
+					let rikjs = Set.map (fun st -> assembleRe st i j) sts in
+					let rikj = plusSet rikjs in
+						(k,i,j,RegExpSyntax.Plus(rij,rikj)) 
+						
+				in	
+				
+								
+				let rec rkij k = 
+					if k < 1 then
+						Set.map (fun (i,j) -> calczerok k i j) (Set.combinations sts sts)
+					else 
+						let prvK = rkij (k-1) in
+							Set.map (fun(i,j) -> calck k i j prvK) (Set.combinations sts sts)
+				in
+				
+				let allRks = rkij (Set.size sts) in 
+				let result = Set.filter (fun (_,i,j,_) -> Set.belongs i rep.allStates && Set.belongs j rep.acceptStates ) allRks in
+				let res = Set.map (fun (_,_,_,re) -> re) result in
+				let newRe = plusSet res in
+				
+					new RegularExpression.model (Representation (newRe))
+				
+								
 			
 		end
 
@@ -1073,15 +1132,13 @@ struct
 		let mfa = fa#minimize in
 		let j = mfa#toJSon in
 			JSon.show j
-			
-		
+	
+	
 
 	let runAll =
 		if active then (
 			Util.header "FiniteAutomatonTests";
-			testReachable ();
-			testProductive ();
-			testClean ()
+			testMinimize ()
 		)
 end
 
@@ -1109,6 +1166,7 @@ and (*module*) RegularExpression : sig
 			method alphabet : symbols
 			method quasiLanguage : words 
 
+			method simplify : RegularExpression.model
 			method toFiniteAutomaton : FiniteAutomaton.model
 			
 			method representation : t
@@ -1127,6 +1185,7 @@ struct
 	
 	(* auxiliary functions *)
 	let seqConcat aset bset = Set.flatMap (fun s1 -> Set.map (fun s2 -> s1@s2) bset) aset 
+	
 
 	class model (arg: t JSon.alternatives) =
 		object(self) inherit Model.model arg (modelDesignation ())
@@ -1208,9 +1267,6 @@ struct
 				
 				
 			method accept (w: word): bool = 
-							
-				let representation = RegExpSyntax.parse "(a*+b*)*" in
-				let w = ['b';'a'] in
 				
 				let partition w = 
 					let rec partX w pword =
@@ -1218,16 +1274,15 @@ struct
 							[] -> Set.empty
 							| x::xs -> let fwp = pword@[x] in
 											Set.add (fwp, xs) (partX xs fwp) in
-						 Set.add ([],w) (partX w []) in
-									
+						 Set.add ([],w) (partX w []) in									
 				
 				let rec acc rep w = 				
 					match rep with 
 						| Plus(l, r) -> (acc l w) || (acc r w)		
 						| Seq(l, r) -> let wpl =  partition w in
 										   Set.exists (fun (wp1,wp2) -> (acc l wp1) && (acc r wp2)) wpl											
-						| Star(re) -> 	w = [] ||							 
-										(let wpl = Set.remove ([],w) (partition w) in
+						| Star(re) -> w = [] ||							 
+									  (let wpl = Set.remove ([],w) (partition w) in
 											Set.exists (fun (wp1,wp2) -> (acc re wp1) && (acc (Star re) wp2)) wpl)	
 						| Symb(c) -> w = [c]  
 						| Empty -> w = []
@@ -1249,7 +1304,9 @@ struct
 						| Star r -> let exp = lang r ln in
 										Set.star exp ln
 				
-							(*let rec starX ws sz = 
+							(* alternate version of star, leave 4 now
+							
+							let rec starX ws sz = 
 								if sz <= 0 then Set.make [[]] 
 								else 
 									let ws = Set.filter (fun x -> sz >= (List.length x)) ws in
@@ -1266,6 +1323,123 @@ struct
 						| Zero -> Set.empty 
 				in  
 					lang representation length
+			
+			
+			method simplify : RegularExpression.model = 
+			
+			
+			(*
+				% re_do_simplify(+RE1, -RE2)
+				% RE2 is provably equivalent to RE1 and RE2 is simpler
+				%
+				re_do_simplify(D, RE) :- re(D, E), !, re_do_simplify(E, RE).
+				re_do_simplify(re(E), RE) :- !, re_do_simplify(E, RE).
+				re_do_simplify(E + E, F) :- re_do_simplify(E, F).
+				re_do_simplify(E + {}, F) :- re_do_simplify(E, F).
+				re_do_simplify({} + E, F) :- re_do_simplify(E, F).
+				re_do_simplify(E^* + [], F) :- re_do_simplify(E^*, F).
+				re_do_simplify([] + E^*, F) :- re_do_simplify(E^*, F).
+				re_do_simplify(E1 * (E2 + E3), G) :-
+					re_do_simplify(E1 * E2, F1), re_do_simplify(E1 * E3, F2),
+					re_do_simplify(F1 + F2, G).
+				re_do_simplify(E^* + E, F) :- re_do_simplify(E^*, F).
+				re_do_simplify(E * E^* + [], F) :- re_do_simplify(E^*,F).
+				re_do_simplify([] + E * E^*, F) :- re_do_simplify(E^*,F).
+				re_do_simplify(E1 + E2, G) :-
+					re_do_simplify(E1,F1), re_do_simplify(E2,F2),
+					(E1 \= F1 ; E2 \= F2), re_do_simplify(F1 + F2, G).
+				re_do_simplify(_ * {}, {}).
+				re_do_simplify({} * _, {}).
+				re_do_simplify(E * [], F) :- re_do_simplify(E, F).
+				re_do_simplify([] * E, F) :- re_do_simplify(E, F).
+				re_do_simplify(E1 * E2, G) :-
+					re_do_simplify(E1, F1), re_do_simplify(E2, F2),
+					(E1 \= F1 ; E2 \= F2), re_do_simplify(F1 * F2, G).
+				re_do_simplify({}^*, []).
+				re_do_simplify([]^*, []).
+				re_do_simplify((E^* )^*, F) :- re_do_simplify(E^*,F).
+				re_do_simplify((E + [])^*, F) :- re_do_simplify(E^*, F).
+				re_do_simplify(([] + E)^*, F) :- re_do_simplify(E^*, F).
+				re_do_simplify(E^*, G) :-
+					re_do_simplify(E,F), E \= F, re_do_simplify(F^*, G).
+				re_do_simplify(E * ((F * E)^* ), G) :- re_do_simplify((E * F)^* * E, G).
+				re_do_simplify(E, E).
+								
+
+				*)
+				
+							
+				let rec simplify re = 
+					match re with	
+						(* plus *)	
+						(* a* + empty *)
+						| Plus(Star(l), Empty) -> simplify (Star(l))	
+						| Plus(Empty, Star(r)) -> simplify (Star(r))
+						(* a* + a + empty  *)
+						| Plus(Star(l), Plus(Empty, r)) -> let sl = simplify l in
+															let sr = simplify r in
+															let sstrl = simplify (Star (sl)) in
+															if sl = sr then sstrl else Plus(sstrl, sr)
+						| Plus(Star(l), Plus(r, Empty)) -> let sl = simplify l in
+															let sr = simplify r in
+															let sstrl = simplify (Star (sl)) in
+															if sl = sr then sstrl else Plus(sstrl, sr)
+						| Plus(Plus(Empty, l), Star(r)) -> let sl = simplify l in
+															let sr = simplify r in
+															let sstrr = simplify (Star (sr)) in
+															if sl = sr then sstrr else Plus(sl, sstrr)
+						| Plus(Plus(l, Empty), Star(r)) -> let sl = simplify l in
+															let sr = simplify r in
+															let sstrr = simplify (Star (sr)) in
+															if sl = sr then sstrr else Plus(sl, sstrr)
+						(* a* + a *)											
+						| Plus(Star(l), r) -> let sl = simplify l in
+												let sr = simplify r in
+												let sstrl = simplify (Star (sl)) in
+												if sl = sr then sstrl else Plus(sstrl, sr)
+						| Plus(l, Star(r)) -> let sl = simplify l in
+												let sr = simplify r in
+												let sstrr = simplify (Star (sr)) in
+												if sl = sr then sstrr else Plus(sr, sstrr)						
+						| Plus(Empty, r) -> Plus(Empty, simplify r)
+						| Plus(l, Empty) -> Plus(simplify l, Empty)
+						| Plus(Zero, r) -> simplify r
+						| Plus(l, Zero) -> simplify l	
+						(* a + b = a||b when a = b *)
+						| Plus(l, r) -> let sl = simplify l in
+										let sr = simplify r in
+											if sl = sr then sl else Plus(sl, sr)
+						(* seq *)
+						| Seq(re, Plus(l,r)) -> let sre = simplify re in
+												let sl = simplify l in
+												let sr = simplify r in
+												let newre = Plus(Seq(sre, sl), Seq(sre, sr)) in
+													simplify newre
+						| Seq(Empty, r) -> simplify r	
+						| Seq(l, Empty) -> simplify l	
+						| Seq(Zero, r) -> Zero	
+						| Seq(l, Zero) -> Zero							
+						| Seq(l, r) -> Seq(simplify l, simplify r)
+						(* star *)
+						| Star(Star(re)) -> Star(simplify re)
+						| Star(Plus(Empty, re)) -> simplify (Star(re))
+						| Star(Plus(re, Empty)) -> simplify (Star(re))
+						| Star(re) -> let sre = simplify re in
+										if sre = Zero then Empty else sre
+						(* symb *)
+						| Symb(c) -> Symb c
+						(* empty *)
+						| Empty -> Empty
+						(* zero *)
+						| Zero -> Zero
+				in
+			
+				let sre = simplify representation in
+			
+				new RegularExpression.model (Representation (sre))
+				
+			
+				
 			
 			
 			method toFiniteAutomaton: FiniteAutomaton.model = 
@@ -1355,7 +1529,11 @@ struct
 			let j = m#toJSon in
 				JSon.show j
 				
-				
+			
+	let test1 () =
+		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
+			let j = re#toJSon in
+				JSon.show j			
 	
 	let testAlphabet () =
 		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
@@ -1385,14 +1563,10 @@ struct
 		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
 		let fa = re#toFiniteAutomaton in
 			JSon.show fa#toJSon
-			
-	let test1 () =
-		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
-			let j = re#toJSon in
-				JSon.show j
+	
 
-	let test2 () =
-		let fa = new FiniteAutomaton.model (File "test Automaton/fa_abc.json") in
+	let testToRe () =
+		let fa = new FiniteAutomaton.model (File "test Automaton/fa_toRe.json") in
 		let r = fa#toRegularExpression in
 		let j = r#toJSon in
 			JSon.show j
@@ -1400,7 +1574,7 @@ struct
 	let runAll =
 		if active then (
 			Util.header "RegularExpressionTests";
-			testAccept ()
+			testToRe ()
 		)
 end
 

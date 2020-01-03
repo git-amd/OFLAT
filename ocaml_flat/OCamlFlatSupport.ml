@@ -148,12 +148,14 @@ sig
 	val size : 'a t -> int
 	val belongs : 'a -> 'a t -> bool
 	val union : 'a t -> 'a t -> 'a t
+	val nth : 'a t -> int -> 'a 
 	val add : 'a -> 'a t -> 'a t
 	val remove : 'a -> 'a t -> 'a t
 	val inter : 'a t -> 'a t -> 'a t
 	val diff : 'a t -> 'a t -> 'a t
 	val subset : 'a t -> 'a t -> bool
 	val map : ('a -> 'b) -> 'a t -> 'b t
+	val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
 	val filter : ('a -> bool) -> 'a t -> 'a t
 	val for_all : ('a -> bool) -> 'a t -> bool
 	val exists : ('a -> bool) -> 'a t -> bool
@@ -177,6 +179,7 @@ sig
 	let size (s: 'a t): int = List.length s
 	let belongs (v: 'a) (s: 'a t): bool = List.mem v s
 	let union (s1: 'a t) (s2: 'a t): 'a t = make (s1 @ s2)
+	let nth (s: 'a t) (n: int) : 'a  = List.nth s n
 	let add (v: 'a) (s: 'a t): 'a t = make (v :: s)
 	let remove (v: 'a) (s: 'a t): 'a t = List.filter (fun x -> x <> v) s
 	let inter (s1: 'a t) (s2: 'a t): 'a t = List.filter (fun x -> belongs x s2) s1
@@ -184,6 +187,7 @@ sig
 	let subset (s1: 'a t) (s2: 'a t): bool = List.for_all (fun x -> belongs x s2) s1
 
 	let map f s = make (List.map f s)
+	let mapi f s = make (List.mapi f s)
 	let filter f s = List.filter f s
 	let for_all f s = List.for_all f s
 	let exists f s = List.exists f s
@@ -464,20 +468,19 @@ module RegExpSyntax = struct
 
 	and parse_atom () =
 		match curr() with
+			| '~' -> skip(); Empty
+			| '!' -> skip(); Zero
 			| '(' -> skip(); parse_parentised ()
 			| '+' | '*' -> failwith "Invalid use of wildcard\n"
 			| ' '  -> failwith "Premature end of expression\n"
 			| c -> skip(); (Symb c)
 
 	and parse_parentised () =
-		match curr() with
-			| ')' -> skip(); Empty
-			| _ ->
-				let e = parse_exp () in (
-					match curr() with
-						| ')' -> skip(); e
-						| _ -> failwith "Right-parenthesis expected\n"
-				)
+		let e = parse_exp () in (
+			match curr() with
+				| ')' -> skip(); e
+				| _ -> failwith "Right-parenthesis expected\n"
+		)
 
 	let parse s =
 		inputString := s;
@@ -498,8 +501,8 @@ module RegExpSyntax = struct
 			| Star(r) ->
 					toStringN 2 r ^ "*"
 			| Symb(c) -> String.make 1 c
-			| Empty -> "()"
-			| Zero -> ""
+			| Empty -> "~"
+			| Zero -> "!"
 
 	let toString re =
 		toStringN 0 re
@@ -512,11 +515,11 @@ module RegExpSyntaxTests = struct
 	let active = false
 
 	let test0 () =
-		let re = RegExpSyntax.parse "ab+()*" in
+		let re = RegExpSyntax.parse "ab+~*" in
 			RegExpSyntax.show re
 
 	let test1 () =
-		let re = RegExpSyntax.parse "()((a+b)*(cd)*)*" in
+		let re = RegExpSyntax.parse "~((a+b)*(cd)*)*" in
 			RegExpSyntax.show re
 
 	let runAll =
@@ -526,3 +529,103 @@ module RegExpSyntaxTests = struct
 			test1 ()
 	)
 end
+ 
+ 
+module CFGSyntax = struct
+	type rule = {
+		head: char;
+		body: char list
+	}
+	type rules = rule list
+
+	let inputString = ref ""
+	let inputStringLength = ref 0
+	let inputStringPosition = ref 0
+
+	let isWhite c =
+		List.mem c [' '; '\t']
+
+	let skip () =
+		inputStringPosition := !inputStringPosition + 1
+
+	let rec curr () =
+		if !inputStringPosition >= !inputStringLength then
+			' '
+		else if isWhite (String.get !inputString !inputStringPosition) then
+			( skip(); curr() )
+		else
+			String.get !inputString !inputStringPosition
+
+	let rec parse_head () =
+		match curr() with
+			  ' ' -> failwith "Premature end of expression\n"
+			| c -> skip() ; c
+
+	let rec parse_neck () =
+		match curr() with
+			  ' ' -> failwith "Premature end of expression\n"
+			| '-' -> skip();
+					if curr() = '>' then skip()
+					else failwith "Bad neck\n"
+			| _ -> failwith "Bad neck\n"
+
+	let rec parse_body () =
+		match curr() with
+			  ' ' -> [[]]
+			| '|' -> skip(); []::parse_body ()
+			| c -> skip();
+					match parse_body () with
+                         [] -> failwith "never happens"
+                       | x::xs -> (c::x)::xs
+
+	let parse_line line =
+		if String.trim line = "" then []
+		else (
+			inputString := line;
+			inputStringLength := String.length line;
+			inputStringPosition := 0;
+			let h = parse_head () in
+			let () = parse_neck () in
+			let bs = parse_body () in
+				List.map (fun b -> {head=h; body=b}) bs
+		)
+
+	let parse rs =
+		List.flatten (List.map parse_line rs)
+
+
+	let toString1 r =
+		let full = [r.head; ' '; '<' ;'-'; ' '] @ r.body in
+			String.concat "" (List.map (String.make 1) full)
+
+	let toString rs =
+		String.concat "\n" (List.map toString1 rs)
+
+	let show rs =
+		Util.println (toString rs)
+end
+
+module CFGSyntaxTests = struct
+	let active = false
+
+	let test0 () =
+		let cfg = [ "S -> aTb | ~"; "T -> aSb" ] in
+		let rules = CFGSyntax.parse cfg in
+			CFGSyntax.show rules
+
+	let test1 () =
+		let cfg = ["S -> aSb | ~"] in
+		let rules = CFGSyntax.parse cfg in
+			CFGSyntax.show rules
+
+	let runAll =
+		if active then (
+			Util.header "CFGSyntaxTests";
+			Util.header "test0";
+			test0 ();
+			Util.header "test1";
+			test1 ();
+			Util.header ""
+	)
+end
+
