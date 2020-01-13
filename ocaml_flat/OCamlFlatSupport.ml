@@ -101,6 +101,19 @@ module Util =  struct
 	let concatAll w s = List.map (fun l -> w@l) s
 
 	let distrib2 f (a,b) = f a b
+	
+	let stringToWord s = 
+		let n = String.length s in
+		let rec iterStr i =
+			if i < n then (s.[i])::(iterStr (i+1))
+			else []
+		in
+			iterStr 0	
+
+	let wordToString w = 
+		let ws = List.map (fun c -> String.make 1 c) w in
+			String.concat "" ws	
+		
 
 	let indexOf e l =
 		let rec index e l n =
@@ -125,7 +138,9 @@ struct
 
 
 	let test1 () =
-		()
+		let a = Util.wordToString ['e';'r';'t'] in
+		let b = Util.wordToString ['4';'5';'y'] in
+			print_string a; print_string b
 
 	let runAll =
 		if active then (

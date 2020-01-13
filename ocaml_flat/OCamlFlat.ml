@@ -112,6 +112,8 @@ struct
 					(new FiniteAutomaton.model (JSon j) :> Model.model)
 				else if RegularExpression.modelDesignation () = kind then
 					(new RegularExpression.model (JSon j) :> Model.model)
+				else if ContextFreeGrammar.modelDesignation () = kind then
+					(new ContextFreeGrammar.model (JSon j) :> Model.model)
 				else
 					(new FiniteAutomaton.model (JSon j) :> Model.model)
 
@@ -135,13 +137,14 @@ end
 and (*module*) Enumeration : sig
 
 	type t = {
+		problem : string;
 		inside : words;
 		outside : words
-	}	
+	}		
 	
 	class enum :	
 		
-	  t JSon.alternatives -> string ->
+	  t JSon.alternatives -> 
 		  object
 			method kind : string
 			method description : string
@@ -158,46 +161,68 @@ and (*module*) Enumeration : sig
 end
  =
 struct
+					
 	type t = {
+		problem : string;
 		inside : words;
 		outside : words
 	}				
-				
-	class enum (arg: 'r JSon.alternatives ) (expectedKind: string) =
-		object(self) inherit Entity.entity arg expectedKind
-
+		
+	class enum (arg: 'r JSon.alternatives ) =
+		object(self) inherit Entity.entity arg "enumeration"
+		
 			val representation: t =
 				let j = JSon.from_alternatives arg in
 					if j = `Null then
 						JSon.get_representation arg
 					else
+						let problem = JSon.field_string j "problem" in
 						let inside = JSon.field_string_set j "inside" in
 						let outside = JSon.field_string_set j "outside" in
 						{
-							inside = Set.map Util.listFromString inside;
-							outside = Set.map Util.listFromString outside
+							problem = problem;
+							inside = Set.map (fun s -> Util.stringToWord s) inside;
+							outside = Set.map (fun s -> Util.stringToWord s) outside
 						}
 			
 
 		initializer self#handleErrors	(* placement is crucial - after representation *)	
-			
+					
 		method representation =
 				representation 
 		method validate = ()
 		method toJSon: json =
+			let rep = representation in
 				`Assoc [
 					("kind", `String self#kind);
 					("description", `String self#description);
 					("name", `String self#name);
-					("inside", `List ([]));
-					("outside", `List ([]))
+					("problem", `String rep.problem );
+					("inside", `List (List.map (fun w -> `String (Util.wordToString w)) (Set.toList rep.inside)));
+					("outside", `List (List.map (fun w -> `String (Util.wordToString w)) (Set.toList rep.outside)))
 				]
 		method tracing = ()
 	end
 end
 
+and (*module*) EnumerationTests : sig
+end
+ =
+struct
 
+let active = false
 
+	let test0 () =
+		let e = new Enumeration.enum (File "test enums/enum_astar.json") in
+			let j = e#toJSon in
+				JSon.show j
+				
+	let runAll =
+		if active then (
+			Util.header "EnumerationTests";
+			test0 ()
+		)
+end			
  
 (* --- Finite Automaton --- *)
 
@@ -846,9 +871,17 @@ struct
 					Set.size representation.allStates = Set.size rep.allStates
 					
 	
-
+			(** 
+			* This method converts the automaton into a regular expression that accepts its language, by
+			* using the transitive closure algorithm 
+			*
+			* @returns RegularExpression.model -> the resulting regular expression
+			*
+			* Desc: The resulting expression is not minimal
+			*)			
 			method toRegularExpression =
-			
+				(* Since the algorithm only works for deterministic automaton, we first convert it
+					to its deterministic equivalent *)
 				let fa = self#toDeterministic in
 				
 				let rep = fa#representation in	
@@ -901,8 +934,7 @@ struct
 					let rikj = plusSet rikjs in
 						(k,i,j,RegExpSyntax.Plus(rij,rikj)) 
 						
-				in	
-				
+				in					
 								
 				let rec rkij k = 
 					if k < 1 then
@@ -918,8 +950,7 @@ struct
 				let newRe = plusSet res in
 				
 					new RegularExpression.model (Representation (newRe))
-				
-								
+							
 			
 		end
 
@@ -1134,7 +1165,6 @@ struct
 			JSon.show j
 	
 	
-
 	let runAll =
 		if active then (
 			Util.header "FiniteAutomatonTests";
@@ -1236,21 +1266,32 @@ struct
 			method tracing: unit = ()
 
 				
-			(* generates the alphabet of all symbols in the regular expression *)					
+			(** 
+			* This method generates the alphabet of all symbols in the expression
+			*
+			* @returns symbols -> the set of all symbols in the expression's alphabet
+			*
+			*)					
 			method alphabet: symbols =						
 							
 				let rec alf rep = 
 					match rep with 
-						| RegExpSyntax.Plus(l, r) -> Set.union (alf l) (alf r) 
-						| RegExpSyntax.Seq(l, r) -> Set.union (alf l) (alf r)
-						| RegExpSyntax.Star(r) -> alf r
-						| RegExpSyntax.Symb(c) -> Set.make [c]
-						| RegExpSyntax.Empty -> Set.empty
-						| RegExpSyntax.Zero -> Set.empty
+						| Plus(l, r) -> Set.union (alf l) (alf r) 
+						| Seq(l, r) -> Set.union (alf l) (alf r)
+						| Star(r) -> alf r
+						| Symb(c) -> Set.make [c]
+						| Empty -> Set.empty
+						| Zero -> Set.empty
 				in
 					alf representation
 			
-			(* generates the language of the regular expression for when klenne is always zero 	*)				
+			
+			(** 
+			* This method generates the language of the regular expression for when klenne is always zero
+			*
+			* @returns words -> set of generated words
+			*
+			*)	
 			method quasiLanguage: words =
 													
 				let rec lang rep = 
@@ -1265,7 +1306,14 @@ struct
 					lang representation 
 				
 				
-				
+			(** 
+			* This method tests if a given word is accepted by the regular expression 
+			*
+			* @param w:word -> word to be tested for acceptance 
+			*
+			* @returns bool -> true if w is accepted and false otherwise
+			*
+			*)	
 			method accept (w: word): bool = 
 				
 				let partition w = 
@@ -1292,6 +1340,13 @@ struct
 					acc representation w
 
 					
+			(** 
+			* This method generates all words up to the given length that are generated by the regular expression 
+			*
+			* @param length:int -> maximum length of all generated words
+			*
+			* @returns words -> set of generated words
+			*)	
 			method generate (length: int): words = 
 												
 				let rec lang rep ln = 
@@ -1325,107 +1380,48 @@ struct
 					lang representation length
 			
 			
+			(** 
+			* This method simplifies the regular expression
+			*
+			* @returns RegularExpression.model -> the new simplified, equivalent expression 
+			*)	
 			method simplify : RegularExpression.model = 
-			
-			
-			(*
-				% re_do_simplify(+RE1, -RE2)
-				% RE2 is provably equivalent to RE1 and RE2 is simpler
-				%
-				re_do_simplify(D, RE) :- re(D, E), !, re_do_simplify(E, RE).
-				re_do_simplify(re(E), RE) :- !, re_do_simplify(E, RE).
-				re_do_simplify(E + E, F) :- re_do_simplify(E, F).
-				re_do_simplify(E + {}, F) :- re_do_simplify(E, F).
-				re_do_simplify({} + E, F) :- re_do_simplify(E, F).
-				re_do_simplify(E^* + [], F) :- re_do_simplify(E^*, F).
-				re_do_simplify([] + E^*, F) :- re_do_simplify(E^*, F).
-				re_do_simplify(E1 * (E2 + E3), G) :-
-					re_do_simplify(E1 * E2, F1), re_do_simplify(E1 * E3, F2),
-					re_do_simplify(F1 + F2, G).
-				re_do_simplify(E^* + E, F) :- re_do_simplify(E^*, F).
-				re_do_simplify(E * E^* + [], F) :- re_do_simplify(E^*,F).
-				re_do_simplify([] + E * E^*, F) :- re_do_simplify(E^*,F).
-				re_do_simplify(E1 + E2, G) :-
-					re_do_simplify(E1,F1), re_do_simplify(E2,F2),
-					(E1 \= F1 ; E2 \= F2), re_do_simplify(F1 + F2, G).
-				re_do_simplify(_ * {}, {}).
-				re_do_simplify({} * _, {}).
-				re_do_simplify(E * [], F) :- re_do_simplify(E, F).
-				re_do_simplify([] * E, F) :- re_do_simplify(E, F).
-				re_do_simplify(E1 * E2, G) :-
-					re_do_simplify(E1, F1), re_do_simplify(E2, F2),
-					(E1 \= F1 ; E2 \= F2), re_do_simplify(F1 * F2, G).
-				re_do_simplify({}^*, []).
-				re_do_simplify([]^*, []).
-				re_do_simplify((E^* )^*, F) :- re_do_simplify(E^*,F).
-				re_do_simplify((E + [])^*, F) :- re_do_simplify(E^*, F).
-				re_do_simplify(([] + E)^*, F) :- re_do_simplify(E^*, F).
-				re_do_simplify(E^*, G) :-
-					re_do_simplify(E,F), E \= F, re_do_simplify(F^*, G).
-				re_do_simplify(E * ((F * E)^* ), G) :- re_do_simplify((E * F)^* * E, G).
-				re_do_simplify(E, E).
-								
-
-				*)
-				
-							
-				let rec simplify re = 
+					
+				(* various base case simplification rules to apply to the given expressions *)
+				let rec simpX re = 
 					match re with	
 						(* plus *)	
 						(* a* + empty *)
-						| Plus(Star(l), Empty) -> simplify (Star(l))	
-						| Plus(Empty, Star(r)) -> simplify (Star(r))
+						| Plus(Star(l), Empty) -> Star(l)	
+						| Plus(Empty, Star(r)) -> Star(r)
+						(* a* + zero *)
+						| Plus(Zero, r) -> r
+						| Plus(l, Zero) -> l
 						(* a* + a + empty  *)
-						| Plus(Star(l), Plus(Empty, r)) -> let sl = simplify l in
-															let sr = simplify r in
-															let sstrl = simplify (Star (sl)) in
-															if sl = sr then sstrl else Plus(sstrl, sr)
-						| Plus(Star(l), Plus(r, Empty)) -> let sl = simplify l in
-															let sr = simplify r in
-															let sstrl = simplify (Star (sl)) in
-															if sl = sr then sstrl else Plus(sstrl, sr)
-						| Plus(Plus(Empty, l), Star(r)) -> let sl = simplify l in
-															let sr = simplify r in
-															let sstrr = simplify (Star (sr)) in
-															if sl = sr then sstrr else Plus(sl, sstrr)
-						| Plus(Plus(l, Empty), Star(r)) -> let sl = simplify l in
-															let sr = simplify r in
-															let sstrr = simplify (Star (sr)) in
-															if sl = sr then sstrr else Plus(sl, sstrr)
+						| Plus(Star(l), Plus(Empty, r)) -> if l = r then l else Plus(Star(l), r)
+						| Plus(Star(l), Plus(r, Empty)) -> if l = r then l else Plus(Star(l), r)
+						| Plus(Plus(Empty, l), Star(r)) -> if l = r then r else Plus(l, Star(r))
+						| Plus(Plus(l, Empty), Star(r)) -> if l = r then r else Plus(l, Star(r))
 						(* a* + a *)											
-						| Plus(Star(l), r) -> let sl = simplify l in
-												let sr = simplify r in
-												let sstrl = simplify (Star (sl)) in
-												if sl = sr then sstrl else Plus(sstrl, sr)
-						| Plus(l, Star(r)) -> let sl = simplify l in
-												let sr = simplify r in
-												let sstrr = simplify (Star (sr)) in
-												if sl = sr then sstrr else Plus(sr, sstrr)						
-						| Plus(Empty, r) -> Plus(Empty, simplify r)
-						| Plus(l, Empty) -> Plus(simplify l, Empty)
-						| Plus(Zero, r) -> simplify r
-						| Plus(l, Zero) -> simplify l	
+						| Plus(Star(l), r) -> if l = r then Star(l) else re	
+						| Plus(l, Star(r)) -> if l = r then Star(r) else re								
 						(* a + b = a||b when a = b *)
-						| Plus(l, r) -> let sl = simplify l in
-										let sr = simplify r in
-											if sl = sr then sl else Plus(sl, sr)
-						(* seq *)
-						| Seq(re, Plus(l,r)) -> let sre = simplify re in
-												let sl = simplify l in
-												let sr = simplify r in
-												let newre = Plus(Seq(sre, sl), Seq(sre, sr)) in
-													simplify newre
-						| Seq(Empty, r) -> simplify r	
-						| Seq(l, Empty) -> simplify l	
+						| Plus(l, r) -> if l = r then l else re
+						(* seq *)	
+						| Seq(Empty, Empty) -> Empty
+						| Seq(Zero, Zero) -> Zero
+						| Seq(Empty, r) -> r	
+						| Seq(l, Empty) -> l	
 						| Seq(Zero, r) -> Zero	
 						| Seq(l, Zero) -> Zero							
-						| Seq(l, r) -> Seq(simplify l, simplify r)
+						| Seq(l, r) -> re
 						(* star *)
-						| Star(Star(re)) -> Star(simplify re)
-						| Star(Plus(Empty, re)) -> simplify (Star(re))
-						| Star(Plus(re, Empty)) -> simplify (Star(re))
-						| Star(re) -> let sre = simplify re in
-										if sre = Zero then Empty else sre
+						| Star(Star(r)) -> Star(r)
+						| Star(Plus(Empty, r)) -> Star(r)
+						| Star(Plus(r, Empty)) -> Star(r)
+						| Star(Empty) -> Empty
+						| Star(Zero) -> Empty
+						| Star(r) -> re
 						(* symb *)
 						| Symb(c) -> Symb c
 						(* empty *)
@@ -1434,14 +1430,27 @@ struct
 						| Zero -> Zero
 				in
 			
+				(* applies various base case simplifications to the various sub-expressions of regular expression re *)
+				let rec simplify re =
+					match re with	
+						| Plus(l,r) -> simpX (Plus(simplify l, simplify r))
+						| Seq(l,r) -> simpX (Seq(simplify l, simplify r))
+						| Star(re) -> simpX (Star(simplify re))
+						| Symb(c) -> Symb c
+						| Empty -> Empty
+						| Zero -> Zero
+				in			
+			
 				let sre = simplify representation in
 			
 				new RegularExpression.model (Representation (sre))
 				
-			
 				
 			
-			
+			(* This method converts the regular expression to its equivalent finite automaton 
+			*
+			* @returns FiniteAutomaton.model -> the resulting finite automaton  
+			*)	
 			method toFiniteAutomaton: FiniteAutomaton.model = 
 				(*auxiliary var for genName function*)				
 				let k = ref 0 in
@@ -1539,19 +1548,88 @@ struct
 		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
 			Util.println "alphabet: "; Util.printAlphabet (Set.toList (re#alphabet));
 			Util.println ""
+			
+	let testAlphabet2 () =
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+			Util.println "alphabet: "; Util.printAlphabet (Set.toList (re#alphabet));
+			Util.println ""
+			
+	let testAlphabet3 () =
+		let re = new RegularExpression.model (File "test regEx/re_complex.json") in
+			Util.println "alphabet: "; Util.printAlphabet (Set.toList (re#alphabet));
+			Util.println ""
+	
+	let testAlphabet4 () =
+		let re = new RegularExpression.model (File "test regEx/re_convoluted.json") in
+			Util.println "alphabet: "; Util.printAlphabet (Set.toList (re#alphabet));
+			Util.println ""
 	
 	let testQuasiLang () =
 		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
+			let ws = re#quasiLanguage in
+			Util.printWordList (Set.toList ws)
+			
+	let testQuasiLang2 () =
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+			let ws = re#quasiLanguage in
+			Util.printWordList (Set.toList ws)
+			
+	let testQuasiLang3 () =
+		let re = new RegularExpression.model (File "test regEx/re_complex.json") in
+			let ws = re#quasiLanguage in
+			Util.printWordList (Set.toList ws)
+			
+	let testQuasiLang4 () =
+		let re = new RegularExpression.model (File "test regEx/re_convoluted.json") in
 			let ws = re#quasiLanguage in
 			Util.printWordList (Set.toList ws)
 		
 	let testAccept () =
 		let m = Model.loadModel "test regEx/re_abc.json" in
 			if m#accept ['a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted" 
-						
-				
+		
+	let testAccept2 () =
+		let m = Model.loadModel "test regEx/re_simple.json" in
+			if m#accept ['a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted" 
+		
+	let testAccept3 () =
+		let m = Model.loadModel "test regEx/re_complex.json" in
+			if m#accept ['a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted" 
+		
+	let testAccept4 () =
+		let m = Model.loadModel "test regEx/re_convoluted.json" in
+			if m#accept ['a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted" 
+		
+			
 	let testGenerate () =
 		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
+			Util.println "generated words size 0:"; Util.printWordList (Set.toList (re#generate 0));
+  		    Util.println "generated words size 1:"; Util.printWordList (Set.toList (re#generate 1));
+  		    Util.println "generated words size 2:"; Util.printWordList (Set.toList (re#generate 2));
+			Util.println "generated words size 3:"; Util.printWordList (Set.toList (re#generate 3));
+			Util.println "generated words size 4:"; Util.printWordList (Set.toList (re#generate 4));
+			Util.println ""
+			
+	let testGenerate2 () =
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+			Util.println "generated words size 0:"; Util.printWordList (Set.toList (re#generate 0));
+  		    Util.println "generated words size 1:"; Util.printWordList (Set.toList (re#generate 1));
+  		    Util.println "generated words size 2:"; Util.printWordList (Set.toList (re#generate 2));
+			Util.println "generated words size 3:"; Util.printWordList (Set.toList (re#generate 3));
+			Util.println "generated words size 4:"; Util.printWordList (Set.toList (re#generate 4));
+			Util.println ""
+			
+	let testGenerate3 () =
+		let re = new RegularExpression.model (File "test regEx/re_complex.json") in
+			Util.println "generated words size 0:"; Util.printWordList (Set.toList (re#generate 0));
+  		    Util.println "generated words size 1:"; Util.printWordList (Set.toList (re#generate 1));
+  		    Util.println "generated words size 2:"; Util.printWordList (Set.toList (re#generate 2));
+			Util.println "generated words size 3:"; Util.printWordList (Set.toList (re#generate 3));
+			Util.println "generated words size 4:"; Util.printWordList (Set.toList (re#generate 4));
+			Util.println ""
+			
+	let testGenerate4 () =
+		let re = new RegularExpression.model (File "test regEx/re_convoluted.json") in
 			Util.println "generated words size 0:"; Util.printWordList (Set.toList (re#generate 0));
   		    Util.println "generated words size 1:"; Util.printWordList (Set.toList (re#generate 1));
   		    Util.println "generated words size 2:"; Util.printWordList (Set.toList (re#generate 2));
@@ -1563,20 +1641,129 @@ struct
 		let re = new RegularExpression.model (File "test regEx/re_abc.json") in
 		let fa = re#toFiniteAutomaton in
 			JSon.show fa#toJSon
-	
+			
+	let testToFA2 () =
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+		let fa = re#toFiniteAutomaton in
+			JSon.show fa#toJSon
+			
+	let testToFA3 () =
+		let re = new RegularExpression.model (File "test regEx/re_complex.json") in
+		let fa = re#toFiniteAutomaton in
+			JSon.show fa#toJSon
+			
+	let testToFA4 () =
+		let re = new RegularExpression.model (File "test regEx/re_convoluted.json") in
+		let fa = re#toFiniteAutomaton in
+			JSon.show fa#toJSon
+			
+	let testSimplify () =
+		let fa = new FiniteAutomaton.model (File "test Automaton/fa_toRe.json") in
+		let r = fa#toRegularExpression in
+		let rs = r#simplify in
+		let j = rs#toJSon in
+			JSon.show j		
+			
+	let testSimplify2 () =
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+		let res = re#simplify in
+			JSon.show res#toJSon
+			
 
 	let testToRe () =
 		let fa = new FiniteAutomaton.model (File "test Automaton/fa_toRe.json") in
 		let r = fa#toRegularExpression in
 		let j = r#toJSon in
-			JSon.show j
+			JSon.show j			
+	
+	
+	let testEnum () =
+		let e = new Enumeration.enum (File "test enums/enum_astar.json")  in
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+		let result = re#checkEnumeration e in
+			if result then print_string "it works" else print_string "it does not work"
+		
 
 	let runAll =
 		if active then (
 			Util.header "RegularExpressionTests";
-			testToRe ()
+			testEnum ()
 		)
+		
+				
 end
 
+
+
+and (*module*) ContextFreeGrammar : sig
+	type t = CFGSyntax.rule
+	
+	val modelDesignation: unit -> string (* a funtion required for module recursive call *)
+	class model :
+	  t JSon.alternatives ->
+		  object
+			method kind : string
+			method description : string
+			method name : string
+			method errors : string list
+			method handleErrors : unit
+			method validate : unit
+			method toJSon: json
+			method representation: t
+			
+			method tracing: unit	
+			method accept: word -> bool
+			method generate: int -> words
+			method checkEnumeration: Enumeration.enum -> bool 
+		  end
+end
+ =
+struct
+	open CFGSyntax
+	type t = CFGSyntax.rule	
+	
+	let modelDesignation () = "context-free grammar"			
+	
+	class model (arg: t JSon.alternatives) =
+		object(self) inherit Model.model arg (modelDesignation ())
+
+			val representation: t =
+				let j = JSon.from_alternatives arg in
+					if j = `Null then
+						JSon.get_representation arg
+					else
+						let head = JSon.field_string j "head" in
+						let body = JSon.field_char_list j "body" in
+							{	head = head.[0];
+								body = body;
+							}
+
+			initializer self#handleErrors	(* placement is crucial - after representation *)
+
+			method representation =
+				representation 
+			
+			method toJSon: json =
+				let rep = representation in
+				`Assoc [
+					("kind", `String self#kind);
+					("description", `String self#description);
+					("name", `String self#name);
+					("head", `String (String.make 1 rep.head) );
+					("body", `List (List.map (fun s -> `String (String.make 1 s)) rep.body));
+					]
+				
+				
+			method validate: unit = ()
+			
+			method tracing: unit = ()
+			
+			method accept (w:word) : bool = false	
+			
+			method generate (length:int) : words = Set.empty
+			
+		end
+
+end
 
 
