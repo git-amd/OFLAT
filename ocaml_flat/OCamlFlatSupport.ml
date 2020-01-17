@@ -9,7 +9,7 @@
  * @author Rita Macedo <rp.macedo@campus.fct.unl.pt>
  * @author Antonio Ravara <aravara@fct.unl.pt>
  *
- * LICENCE - As now this is a private project, but later it
+ * LICENCE - As of now this is a private project, but later it
  *            will be open-source.
 *)
 
@@ -610,7 +610,7 @@ module CFGSyntax = struct
 
 
 	let toString1 r =
-		let full = [r.head; ' '; '<' ;'-'; ' '] @ r.body in
+		let full = [r.head; ' '; '-'; '>' ; ' '] @ r.body in
 			String.concat "" (List.map (String.make 1) full)
 
 	let toString rs =

@@ -7,14 +7,14 @@
  * @author Artur Miguel Dias <amd@fct.unl.pt>
  * @author Antonio Ravara <aravara@fct.unl.pt>
  *
- * LICENCE - As now this is a private project, but later it
+ * LICENCE - As of now this is a private project, but later it
  *            will be open-source.
 *)
 
 
-open OCamlFlatSupport  
+open OCamlFlatSupport 
 
-(*#use "OCamlFlatSupport.ml";;*)
+(*#use "OCamlFlatSupport.ml";; *)
 (* --- Configuration --- *)
 
 module Configuration = struct
@@ -101,6 +101,7 @@ and (*module*) Model : sig
 			method virtual generate : int -> words
 			method virtual tracing : unit
 			method checkEnumeration : Enumeration.enum -> bool 
+			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
 		  end
 end
  =
@@ -126,6 +127,10 @@ struct
 			method checkEnumeration (enum:Enumeration.enum) = 
 						Set.for_all (fun w -> self#accept w) enum#representation.inside
 					 && Set.for_all (fun w -> not (self#accept w)) enum#representation.outside
+					 
+			method checkEnumerationFailures (enum:Enumeration.enum) = 
+				(Set.filter (fun w -> not (self#accept w)) enum#representation.inside,
+					Set.filter (fun w -> self#accept w) enum#representation.outside)
 
 	end
 
@@ -271,6 +276,7 @@ and (*module*) FiniteAutomaton : sig
 
 			method representation : t
 			method checkEnumeration : Enumeration.enum -> bool 
+			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
 		  end
 end
  =
@@ -889,7 +895,7 @@ struct
 				let sts = rep.allStates in
 				let trns = rep.transitions in
 				
-								
+				(* transforms the set of expressions into the regex: plus of all expressions of the set *)			
 				let rec plusSet reSet =
 					let rec pls l =
 						match l with
@@ -899,14 +905,14 @@ struct
 						pls (Set.toList reSet)
 				in
 				
-				
+				(* For the given i and j, returns the value of R when k is zero.
+					Note that k will always be 0 when called inside this method *)
 				let calczerok k i j = 
 					let ts = Set.filter (fun (a,_,b) -> i = a && j = b) trns in
 					if ts <> Set.empty then
 						if i <> j then 
 							let res = Set.map (fun (_,c,_) -> RegExpSyntax.Symb c) ts in 
-								(k,i,j,plusSet res)
-								
+								(k,i,j,plusSet res)								
 						else 
 							let res = Set.map (fun (_,c,_) -> RegExpSyntax.Symb c) ts in 
 							let re = RegExpSyntax.Plus(RegExpSyntax.Empty, (plusSet res)) in
@@ -916,7 +922,7 @@ struct
 				in
 				
 				
-				
+				(* For the given i and j, returns the value of R when k is not zero. *)
 				let calck k i j prvK = 
 					let getRij i j = 
 						let r = Set.nth (Set.filter (fun (_,x,y,_) -> x = i && y = j) prvK) 0 in
@@ -935,7 +941,8 @@ struct
 						(k,i,j,RegExpSyntax.Plus(rij,rikj)) 
 						
 				in					
-								
+					
+				(* Main function that applies previous 2 functions to all possible i and j pairs *)	
 				let rec rkij k = 
 					if k < 1 then
 						Set.map (fun (i,j) -> calczerok k i j) (Set.combinations sts sts)
@@ -945,7 +952,7 @@ struct
 				in
 				
 				let allRks = rkij (Set.size sts) in 
-				let result = Set.filter (fun (_,i,j,_) -> Set.belongs i rep.allStates && Set.belongs j rep.acceptStates ) allRks in
+				let result = Set.filter (fun (_,i,j,_) -> i = rep.initialState && Set.belongs j rep.acceptStates ) allRks in
 				let res = Set.map (fun (_,_,_,re) -> re) result in
 				let newRe = plusSet res in
 				
@@ -1201,6 +1208,7 @@ and (*module*) RegularExpression : sig
 			
 			method representation : t
 			method checkEnumeration : Enumeration.enum -> bool
+			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
 
 			
 		  end
@@ -1386,7 +1394,7 @@ struct
 			* @returns RegularExpression.model -> the new simplified, equivalent expression 
 			*)	
 			method simplify : RegularExpression.model = 
-					
+								
 				(* various base case simplification rules to apply to the given expressions *)
 				let rec simpX re = 
 					match re with	
@@ -1397,24 +1405,34 @@ struct
 						(* a* + zero *)
 						| Plus(Zero, r) -> r
 						| Plus(l, Zero) -> l
+						(* ~ + aa* *)
+						| Plus(Empty, Seq(l, Star(r))) when l = r -> Star(r)
+						| Plus(Empty, Seq(Star(l), r)) when l = r -> Star(l)
+						| Plus(Seq(l, Star(r)), Empty) when l = r -> Star(r)
+						| Plus(Seq(Star(l), r), Empty) when l = r -> Star(l)
 						(* a* + a + empty  *)
-						| Plus(Star(l), Plus(Empty, r)) -> if l = r then l else Plus(Star(l), r)
-						| Plus(Star(l), Plus(r, Empty)) -> if l = r then l else Plus(Star(l), r)
-						| Plus(Plus(Empty, l), Star(r)) -> if l = r then r else Plus(l, Star(r))
-						| Plus(Plus(l, Empty), Star(r)) -> if l = r then r else Plus(l, Star(r))
+						| Plus(Star(l), Plus(Empty, r)) when l = r -> Star(l)
+						| Plus(Star(l), Plus(r, Empty)) when l = r -> Star(l)
+						| Plus(Plus(Empty, l), Star(r)) when l = r -> Star(r)
+						| Plus(Plus(l, Empty), Star(r)) when l = r -> Star(r)
 						(* a* + a *)											
-						| Plus(Star(l), r) -> if l = r then Star(l) else re	
-						| Plus(l, Star(r)) -> if l = r then Star(r) else re								
+						| Plus(Star(l), r) when l = r -> Star(l)
+						| Plus(l, Star(r)) when l = r -> Star(r)							
 						(* a + b = a||b when a = b *)
-						| Plus(l, r) -> if l = r then l else re
-						(* seq *)	
+						| Plus(l, r) when l = r -> l 
+						(* seq *)							
 						| Seq(Empty, Empty) -> Empty
 						| Seq(Zero, Zero) -> Zero
 						| Seq(Empty, r) -> r	
 						| Seq(l, Empty) -> l	
 						| Seq(Zero, r) -> Zero	
-						| Seq(l, Zero) -> Zero							
-						| Seq(l, r) -> re
+						| Seq(l, Zero) -> Zero	
+						(* (~+a)a* *)						
+						| Seq(Plus(Empty, l),Star(r)) when l = r -> Star(r)
+						| Seq(Plus(l, Empty),Star(r)) when l = r -> Star(r)
+						| Seq(Star(l),Plus(Empty, r)) when l = r -> Star(l)
+						| Seq(Star(l),Plus(r, Empty)) when l = r -> Star(l)
+						| Seq(Star(l),Star(r)) when l = r -> Star(l)
 						(* star *)
 						| Star(Star(r)) -> Star(r)
 						| Star(Plus(Empty, r)) -> Star(r)
@@ -1428,10 +1446,12 @@ struct
 						| Empty -> Empty
 						(* zero *)
 						| Zero -> Zero
+						| _ -> re
 				in
 			
 				(* applies various base case simplifications to the various sub-expressions of regular expression re *)
 				let rec simplify re =
+					
 					match re with	
 						| Plus(l,r) -> simpX (Plus(simplify l, simplify r))
 						| Seq(l,r) -> simpX (Seq(simplify l, simplify r))
@@ -1660,6 +1680,7 @@ struct
 	let testSimplify () =
 		let fa = new FiniteAutomaton.model (File "test Automaton/fa_toRe.json") in
 		let r = fa#toRegularExpression in
+		JSon.show r#toJSon;
 		let rs = r#simplify in
 		let j = rs#toJSon in
 			JSon.show j		
@@ -1687,16 +1708,21 @@ struct
 	let runAll =
 		if active then (
 			Util.header "RegularExpressionTests";
-			testEnum ()
+			testSimplify ()
 		)
 		
 				
 end
 
 
-
+(**)
 and (*module*) ContextFreeGrammar : sig
-	type t = CFGSyntax.rule
+	type t = {
+		alphabet : symbols;
+		variables : char set;
+		initial : char;
+		rules : CFGSyntax.rules;
+	}
 	
 	val modelDesignation: unit -> string (* a funtion required for module recursive call *)
 	class model :
@@ -1715,14 +1741,20 @@ and (*module*) ContextFreeGrammar : sig
 			method accept: word -> bool
 			method generate: int -> words
 			method checkEnumeration: Enumeration.enum -> bool 
+			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
 		  end
 end
  =
 struct
 	open CFGSyntax
-	type t = CFGSyntax.rule	
+	type t = {
+		alphabet : symbols;
+		variables : char set;
+		initial : char;
+		rules : CFGSyntax.rules;
+	}
 	
-	let modelDesignation () = "context-free grammar"			
+	let modelDesignation () = "context free grammar"			
 	
 	class model (arg: t JSon.alternatives) =
 		object(self) inherit Model.model arg (modelDesignation ())
@@ -1732,10 +1764,15 @@ struct
 					if j = `Null then
 						JSon.get_representation arg
 					else
-						let head = JSon.field_string j "head" in
-						let body = JSon.field_char_list j "body" in
-							{	head = head.[0];
-								body = body;
+						let alphabet = JSon.field_char_set j "alphabet" in
+						let variables = JSon.field_char_set j "variables" in
+						let initial = JSon.field_string j "initial" in
+						let rules = JSon.field_string_list j "rules" in						
+							{	 
+								alphabet = alphabet;
+								variables = variables;
+								initial = initial.[0];
+								rules = CFGSyntax.parse rules;
 							}
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
@@ -1744,26 +1781,118 @@ struct
 				representation 
 			
 			method toJSon: json =
+				let ruleToJSon {head=h; body=b} = 
+					let aa = String.concat "" (List.map (fun x -> String.make 1 x) b) in
+					let hh = String.make 1 h in
+					`String (hh^" -> "^aa) in
+			
 				let rep = representation in
 				`Assoc [
 					("kind", `String self#kind);
 					("description", `String self#description);
 					("name", `String self#name);
-					("head", `String (String.make 1 rep.head) );
-					("body", `List (List.map (fun s -> `String (String.make 1 s)) rep.body));
+					("alphabet", `List (List.map (fun s -> `String (String.make 1 s)) (Set.toList rep.alphabet)));
+					("variables", `List (List.map (fun s -> `String (String.make 1 s)) (Set.toList rep.variables)));
+					("initial", `String (String.make 1 rep.initial) );
+					("rules", `List (List.map ruleToJSon rep.rules));
 					]
+								
+			method validate: unit = (
+			
+				let isInitialValid = Set.belongs representation.initial representation.variables in
 				
+				let areRuleHeadsValid = 
+					let hl = List.map (fun r -> r.head) representation.rules in
+					let hs = Set.make hl in
+						Set.subset hs representation.variables 
+				in
+				 
+				let areRuleBodiesValid =
+					let bl = List.map (fun r -> Set.make r.body) representation.rules in
+					let bs = Set.make bl in
+					let allValidSymbs = Set.add epsilon (Set.union representation.alphabet representation.variables) in
+					let res = Set.exists (fun b -> not (Set.subset b allValidSymbs)) bs in
+						not res
+				in
 				
-			method validate: unit = ()
+				if not isInitialValid then
+            		Error.error (String.make 1 representation.initial)
+            			"initial does not belong to the set of all variables" ()
+            	;
+            	
+            	if not areRuleHeadsValid then
+            		Error.error self#name
+            			"not all rule heads belong to the set of all variables" ()
+            	;
+            	
+            	if not areRuleBodiesValid then
+            		Error.error self#name
+            			"not all rule bodies have valid characters" ()
+            	)
 			
 			method tracing: unit = ()
 			
 			method accept (w:word) : bool = false	
 			
+			
 			method generate (length:int) : words = Set.empty
+				(*
+				let rep = representation in
+				
+				let bodiesOfHead h rl =
+					let rls = List.filter (fun r -> r.head = h) rl in
+					let bl = List.map (fun r -> r.body) rls in
+						Set.make bl
+				in				
+				
+				let concatWords lws rws = 
+					let pairs = Set.combinations lws rws  in
+						Set.map (fun (x,y) -> x@y) pairs
+				in
+				
+				
+				let subX h rws rl =
+					let bs = bodiesOfHead h rl in
+						concatWords bs rws
+				in
+					
+				
+				let rec sub w = 
+					match w with
+						| [] -> Set.empty
+						| x::xs -> if (List.mem x rep.variables) then subX x (sub xs) rep.rules
+									else concatWords (Set.make [x]) (sub xs) 
+				in
+				
+				
+				(* boh do init, ao res fazer boh de cada char, e ir controlando lenght *)
+				
+				bodiesOfHead rep.initial rep.rules
+			*)
+			
 			
 		end
 
 end
 
+and (*module*) ContextFreeGrammarTests: sig
+end
+=
+struct
+	let active = false
 
+	let test0 () =
+		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
+		let j = m#toJSon in
+			JSon.show j
+	
+	let runAll =
+		if active then (
+			Util.header "ContextFreeGrammarTests";
+			test0 ()
+		)
+
+end		
+				
+	
+	
