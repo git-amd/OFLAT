@@ -1,0 +1,9 @@
+{
+	kind : "enumeration",
+	description : "this is an example",
+	name : "a*",
+	problem : "",
+	inside : ["a","aa","aaa","aaaaaaa"],
+	outside : ["d","b","ava"]
+}
+

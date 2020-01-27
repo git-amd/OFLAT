@@ -1,0 +1,15 @@
+{
+	kind : "finite automaton",
+	description : "this is an example",
+	name : "ab123",
+	alphabet : ["a", "b"],
+	states : ["1", "2", "3"],
+	initialState : "1",
+    transitions : [
+            ["1","a","2"], ["1","b","3"], 
+            ["2","b","2"], 
+			["3","a","3"]
+        ],
+    acceptStates : ["2", "3"]
+}
+

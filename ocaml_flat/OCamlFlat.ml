@@ -12,9 +12,9 @@
 *)
 
 
-open OCamlFlatSupport 
+open OCamlFlatSupport  
 
-(*#use "OCamlFlatSupport.ml";; *)
+(*#use "OCamlFlatSupport.ml";;*)
 (* --- Configuration --- *)
 
 module Configuration = struct
@@ -1754,7 +1754,10 @@ struct
 		rules : CFGSyntax.rules;
 	}
 	
-	let modelDesignation () = "context free grammar"			
+	let modelDesignation () = "context free grammar"	
+
+
+	
 	
 	class model (arg: t JSon.alternatives) =
 		object(self) inherit Model.model arg (modelDesignation ())
@@ -1832,44 +1835,202 @@ struct
 			
 			method tracing: unit = ()
 			
-			method accept (w:word) : bool = false	
+			
+			method accept (w:word) : bool = 
 			
 			
-			method generate (length:int) : words = Set.empty
-				(*
-				let rep = representation in
+				(* any word with a symbol not from the cfg alphabet will not be accepted *)
+				if not (Set.subset (Set.make w) representation.alphabet) then false else
 				
+				
+				let vs = representation.variables in
+					
+				(* given a head, returns the set of all its bodies according to the cfg's rules *)
 				let bodiesOfHead h rl =
 					let rls = List.filter (fun r -> r.head = h) rl in
 					let bl = List.map (fun r -> r.body) rls in
 						Set.make bl
-				in				
+				in	
 				
+				(* given 2 sets of words, to each word of the left set, appends each word of the right set *)
 				let concatWords lws rws = 
-					let pairs = Set.combinations lws rws  in
-						Set.map (fun (x,y) -> x@y) pairs
-				in
+					if lws = Set.empty then rws
+					else if rws = Set.empty then lws
+					else					
+						let pairs = Set.combinations lws rws  in
+							Set.map (fun (x,y) -> x@y) pairs
+				in	
 				
 				
 				let subX h rws rl =
 					let bs = bodiesOfHead h rl in
 						concatWords bs rws
-				in
-					
+				in					
 				
-				let rec sub w = 
+				(* applies the cfg's rules to the given word *)
+				let rec subVar w vs rs = 
 					match w with
-						| [] -> Set.empty
-						| x::xs -> if (List.mem x rep.variables) then subX x (sub xs) rep.rules
-									else concatWords (Set.make [x]) (sub xs) 
+						| [] -> Set.make [[]]
+						| x::xs -> if (Set.belongs x vs) then subX x (subVar xs vs rs) rs
+									else concatWords (Set.make [[x]]) (subVar xs vs rs) 
 				in
 				
 				
-				(* boh do init, ao res fazer boh de cada char, e ir controlando lenght *)
+				let exceedsMaxLen w l alph =
+					let cleanWord = List.filter (fun c ->  Set.belongs c alph) w in
+						(List.length cleanWord) > l
+				in
 				
-				bodiesOfHead rep.initial rep.rules
-			*)
+				
+				(* removes the empty symbol from all non-empty words *)
+				let removeEpsi w = if w = [epsilon] then [] else List.filter (fun c -> c <> epsilon) w in
+				
+				
+				(* ----------------- *)
+				
+				(* for word wa, get subword to the left of its first variable *)
+				let rec getPrefix wa =
+					match wa with
+						| [] -> []
+						| x::xs -> if Set.belongs x vs then [] else x::(getPrefix xs) 
+				in
+						
+				(* for word wa, get subword to the rigth of its last variable *)
+				let getSuffix wa =
+					let rec getSuffixX wa sfx =
+						match wa with
+							| [] -> sfx
+							| x::xs -> let auxSfx = sfx@[x] in 
+										if Set.belongs x vs then getSuffixX xs []
+											else getSuffixX xs auxSfx
+					in
+						getSuffixX wa []
+				in
 			
+				let rec firstNElements w n =
+					match w with
+						| [] -> []
+						| x::xs -> if n > 0 then x::(firstNElements xs (n-1)) else [] 
+				in
+						
+				let rec lastNElements w n =
+					match w with
+						| [] -> []
+						| x::xs -> if n < (List.length w) then lastNElements xs n else w  
+				in
+				
+				(* a word can be discarded if its prefix does not match the leftmostmost part of word w *)
+				let keepByPrefix genW testW =
+					let pgw = getPrefix genW in
+					let ptw = firstNElements testW (List.length pgw) in
+						pgw = [] || pgw = ptw
+				in
+				
+				
+				(* a word can be discarded if its suffix does not match the rightmost part of word w *)
+				let keepBySufix genW testW =
+					let sgw = getSuffix genW in
+					let stw = lastNElements testW (List.length sgw) in
+						sgw = [] || sgw = stw
+				in
+			
+				(* the word inst discarded only if it cant be discarded by neither its prefix nor its suffix *)
+				let toKeep w ow = (w = [] && ow = [])  || (keepByPrefix w ow && keepBySufix w ow) in
+			
+				
+				let alph = representation.alphabet in
+				let vs = representation.variables in
+				let rs = representation.rules in
+				let l = List.length w in
+				let ow = w in				
+				
+				let nextGeneration ws =	
+					let subsWs = Set.flatMap (fun w -> subVar w vs rs) ws in
+					let rws = Set.filter (fun w -> not (exceedsMaxLen w l alph)) subsWs in
+					let rws = Set.map (fun w -> removeEpsi w) rws in
+						Set.filter (fun w -> toKeep w ow ) rws 
+												
+				in
+				
+								
+				let start = Set.make [[representation.initial]] in
+				
+				let res = Set.historicalFixedPoint nextGeneration start in
+					Set.exists (fun x -> x = ow ) res
+
+				
+			
+			
+			method generate (length:int) : words =  
+					
+				(* given a head, returns the set of all its bodies according to the cfg's rules *)
+				let bodiesOfHead h rl =
+					let rls = List.filter (fun r -> r.head = h) rl in
+					let bl = List.map (fun r -> r.body) rls in
+						Set.make bl
+				in	
+				
+				(* given 2 sets of words, to each word of the left set, appends each word of the right set *)
+				let concatWords lws rws = 
+					if lws = Set.empty then rws
+					else if rws = Set.empty then lws
+					else					
+						let pairs = Set.combinations lws rws  in
+							Set.map (fun (x,y) -> x@y) pairs
+				in	
+				
+				
+				let subX h rws rl =
+					let bs = bodiesOfHead h rl in
+						concatWords bs rws
+				in					
+				
+				(* applies the cfg's rules to the given word *)
+				let rec subVar w vs rs = 
+					match w with
+						| [] -> Set.make [[]]
+						| x::xs -> if (Set.belongs x vs) then subX x (subVar xs vs rs) rs
+									else concatWords (Set.make [[x]]) (subVar xs vs rs) 
+				in
+				
+				(* removes the empty symbol from all non-empty words *)
+				let removeEpsi w = List.filter (fun c -> c <> epsilon) w in
+				
+				
+				let cleanNonWords ws vs =
+					let hasVar w = List.exists (fun c -> Set.belongs c vs) w in
+					let ws = Set.filter (fun w -> not (hasVar w)) ws in
+						Set.map (fun w -> removeEpsi w) ws
+				in
+				
+				
+				
+				let exceedsMaxLen w l alph =
+					let cleanWord = List.filter (fun c ->  Set.belongs c alph) w in
+						(List.length cleanWord) > l
+				in
+				
+				
+				
+				let alph = representation.alphabet in
+				let vs = representation.variables in
+				let rs = representation.rules in
+				
+				
+				let nextGeneration ws =
+					let subsWs = Set.flatMap (fun w -> subVar w vs rs) ws in
+						Set.filter (fun w -> not (exceedsMaxLen w length alph)) subsWs
+				in
+				
+				
+				
+				let start = Set.make [[representation.initial]] in
+				
+				let res = Set.historicalFixedPoint nextGeneration start in
+								
+					cleanNonWords res vs
+				
+				
 			
 		end
 
@@ -1885,11 +2046,21 @@ struct
 		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
 		let j = m#toJSon in
 			JSon.show j
+			
+	let testAcc () =
+		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
+		let ws = m#accept [] in
+			if ws then Util.println "Word was accepted" else Util.println "Word was not accepted"
+			
+	let testGen () =
+		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
+		let ws = m#generate 4 in
+			Set.iter (fun w -> Util.printWord w) ws
 	
 	let runAll =
 		if active then (
 			Util.header "ContextFreeGrammarTests";
-			test0 ()
+			testAcc ()
 		)
 
 end		

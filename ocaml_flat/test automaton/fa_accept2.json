@@ -1,0 +1,17 @@
+{
+	kind : "finite automaton",
+	description : "this is an example",
+	name : "abc",
+	alphabet : ["a", "b", "c", "d"],
+	states : ["START", "A", "AB", "C", "SUCCESS", "D"],
+	initialState : "START",
+    transitions : [
+            ["START","a","A"], ["START","~","AB"], 
+			["A","~","C"], 
+			["AB","b","SUCCESS"], ["AB","~","SUCCESS"],
+			["C","~","SUCCESS"], ["C","d","C"], 
+			["SUCCESS","~","START"]
+        ],
+    acceptStates : ["SUCCESS"]
+}
+

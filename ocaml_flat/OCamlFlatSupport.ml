@@ -127,6 +127,7 @@ module Util =  struct
 		let next = f x in
 			if x = next then x
 			else fixedPoint f next
+			
 end
 
 module UtilTests =
@@ -183,6 +184,7 @@ sig
 	val allDistinct : ('a -> 'b) -> 'a t -> bool
 	val hasDuplicates : 'a t -> bool
 	val validate : 'a list -> string -> 'a t
+	val historicalFixedPoint : ('a t -> 'a t) -> ('a t) -> 'a t 
 	val test: unit -> int list list
   end
 = struct
@@ -225,6 +227,16 @@ sig
 		if hasDuplicates l
 			then Error.error culprit "Repetitions in set" empty
 			else make l
+			
+	let historicalFixedPoint (f: 'a t -> 'a t) (x: 'a t): 'a t =
+		let rec historicalFixedPointX (f: 'a t -> 'a t) (x: 'a t) (acum: 'a t): 'a t =
+			let next = f x in
+			let newAcum = union x acum in
+			if acum = newAcum then x
+			else historicalFixedPointX f next newAcum 
+		in
+			historicalFixedPointX f x empty
+		
 
 	let test (): int list list =  (* Set.test ();; *)
 		toList (star (make[ [1]; [2;3]]) 4)

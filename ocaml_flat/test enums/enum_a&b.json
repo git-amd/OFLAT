@@ -1,0 +1,9 @@
+{
+	kind : "enumeration",
+	description : "this is an example",
+	name : "a&b",
+	problem : "ab*+ba*",
+	inside : ["a","ab","abb","abbbbbbbb","b","ba","baa","baaaaaa"],
+	outside : ["","aba","bab","abba","baab","c"]
+}
+

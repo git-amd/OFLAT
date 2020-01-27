@@ -1,0 +1,11 @@
+{
+	kind : "context free grammar",
+	description : "this is an example",
+	name : "01",
+	alphabet : ["0", "1"],
+	variables : ["S", "P"],
+	initial : "S",
+    rules : [ "S -> 1S0 | P",
+			  "P -> 0P1 | ~"
+        ]
+}

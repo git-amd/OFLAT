@@ -1,0 +1,9 @@
+{
+	kind : "enumeration",
+	description : "this is an example",
+	name : "a&b",
+	problem : "(a+b)*(c+d)",
+	inside : ["abc","c","ab","b","abac"],
+	outside : ["","aba","bab","abba","baab","abcd"]
+}
+

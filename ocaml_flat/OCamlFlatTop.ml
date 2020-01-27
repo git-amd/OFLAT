@@ -68,6 +68,11 @@ let enum_convertFrom enum : Enumeration.t =
 			outside = Set.make outws
 		}	
 	
+let enum_convertFailures ins outs =
+	let ins = Set.map (fun w -> Util.stringFromList w) ins in
+	let outs = Set.map (fun w -> Util.stringFromList w) outs in
+		(Set.toList ins, Set.toList outs)
+		
 
 (* Automaton functions *)
 
@@ -78,6 +83,7 @@ let fa_load file =
 let fa_accept fa w =
 	let fa = fa_convertFrom fa in
 	let a = new FiniteAutomaton.model (Representation fa) in
+	let w = Util.stringToWord w in
 		a#accept w 
 			
 let fa_generate fa l =
@@ -144,6 +150,7 @@ let re_alphabet re =
 let re_accept re w =
 	let re = re_convertFrom re in
 	let a = new RegularExpression.model (Representation re) in
+	let w = Util.stringToWord w in
 		a#accept w
 				
 let re_generate re l =
@@ -168,11 +175,7 @@ let re_toFA re =
 		
 (* Enumeration functions *)	
 
-let enum_convertFailures ins outs =
-	let ins = Set.map (fun w -> Util.stringFromList w) ins in
-	let outs = Set.map (fun w -> Util.stringFromList w) outs in
-		(Set.toList ins, Set.toList outs)
-		
+
 let enum_load file =
 	let e = new Enumeration.enum (File file) in
 		enum_convertTo e#representation			
@@ -187,6 +190,21 @@ let enum_testFA enum fa =
 let enum_testFAFailures enum fa =
 	let fa = fa_convertFrom fa in
 	let a = new FiniteAutomaton.model (Representation fa) in
+	let enum = enum_convertFrom enum in
+	let e = new Enumeration.enum (Representation enum) in
+	let (ins,outs) = a#checkEnumerationFailures e in
+		enum_convertFailures ins outs
+		
+let enum_testRe enum re =
+	let re = re_convertFrom re in
+	let a = new RegularExpression.model (Representation re) in
+	let enum = enum_convertFrom enum in
+	let e = new Enumeration.enum (Representation enum) in
+		a#checkEnumeration e
+
+let enum_testReFailures enum re =
+	let re = re_convertFrom re in
+	let a = new RegularExpression.model (Representation re) in
 	let enum = enum_convertFrom enum in
 	let e = new Enumeration.enum (Representation enum) in
 	let (ins,outs) = a#checkEnumerationFailures e in

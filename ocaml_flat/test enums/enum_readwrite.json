@@ -1,0 +1,9 @@
+{
+	kind : "enumeration",
+	description : "this is an example",
+	name : "read&write",
+	problem : "open,close,read,write",
+	inside : ["","orc","owc","orwc","owwrwrrc","ocorwc"],
+	outside : ["or","oo","o","w","r","c","orw","owrrww","corwc"]
+}
+

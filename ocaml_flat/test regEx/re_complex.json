@@ -1,0 +1,7 @@
+{
+	kind : "regular expression",
+	description : "this is a complex example",
+	name : "abcdefg",
+	re : "(a+(b(c+d)+ea))*f*g"
+}
+
