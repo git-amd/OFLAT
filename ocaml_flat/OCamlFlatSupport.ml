@@ -88,6 +88,25 @@ module Util =  struct
 
 	let printWordList (l:char list list) =
 		List.iter printWord l
+		
+	let printTrace l =
+		let trace w sts = 
+			print_string "(["; print_string "'";
+			List.iter (fun c -> print_char c) w;
+			print_string "'"; print_string "], [";
+			List.iter (fun st -> print_char '"'; print_string st; print_char '"') sts;
+			print_string "]); "
+		in
+	
+		print_string "[";
+		List.iter (fun (a,b) -> trace a b) l;
+		print_string "]"; 
+		println " "
+			
+		
+		
+		
+	let charToString c = String.make 1 c
 
 	let listFromString s = List.init (String.length s) (String.get s)
 
@@ -185,6 +204,7 @@ sig
 	val hasDuplicates : 'a t -> bool
 	val validate : 'a list -> string -> 'a t
 	val historicalFixedPoint : ('a t -> 'a t) -> ('a t) -> 'a t 
+	val historicalFixedPointTracing : ('a t -> 'a t) -> ('a t) -> 'a t list
 	val test: unit -> int list list
   end
 = struct
@@ -236,6 +256,18 @@ sig
 			else historicalFixedPointX f next newAcum 
 		in
 			historicalFixedPointX f x empty
+		
+		
+	let historicalFixedPointTracing (f: 'a t -> 'a t) (x: 'a t): 'a t list =
+		let rec historicalFixedPointX (f: 'a t -> 'a t) (x: 'a t) (acum: 'a t) (trace: 'a t list): 'a t list =
+			let next = f x in
+			let newTrace = trace@[next] in
+			let newAcum = union x acum in
+			if acum = newAcum then trace
+			else historicalFixedPointX f next newAcum newTrace
+		in
+			historicalFixedPointX f x empty [x]
+						
 		
 
 	let test (): int list list =  (* Set.test ();; *)
@@ -563,7 +595,7 @@ module CFGSyntax = struct
 		head: char;
 		body: char list
 	}
-	type rules = rule list
+	type rules = rule Set.t
 
 	let inputString = ref ""
 	let inputStringLength = ref 0
@@ -606,19 +638,19 @@ module CFGSyntax = struct
                        | x::xs -> (c::x)::xs
 
 	let parse_line line =
-		if String.trim line = "" then []
+		if String.trim line = "" then Set.empty
 		else (
 			inputString := line;
 			inputStringLength := String.length line;
 			inputStringPosition := 0;
 			let h = parse_head () in
 			let () = parse_neck () in
-			let bs = parse_body () in
-				List.map (fun b -> {head=h; body=b}) bs
+			let bs = Set.make (parse_body ()) in
+				Set.map (fun b -> {head=h; body=b}) bs
 		)
 
 	let parse rs =
-		List.flatten (List.map parse_line rs)
+		Set.flatMap parse_line rs
 
 
 	let toString1 r =
@@ -626,7 +658,12 @@ module CFGSyntax = struct
 			String.concat "" (List.map (String.make 1) full)
 
 	let toString rs =
-		String.concat "\n" (List.map toString1 rs)
+		let rl = Set.toList rs in
+		String.concat "\n" (List.map toString1 rl)
+		
+	let toStringList rs =
+		let rl = Set.toList rs in
+			List.map toString1 rl
 
 	let show rs =
 		Util.println (toString rs)
@@ -636,12 +673,12 @@ module CFGSyntaxTests = struct
 	let active = false
 
 	let test0 () =
-		let cfg = [ "S -> aTb | ~"; "T -> aSb" ] in
+		let cfg = Set.make [ "S -> aTb | ~"; "T -> aSb" ] in
 		let rules = CFGSyntax.parse cfg in
 			CFGSyntax.show rules
 
 	let test1 () =
-		let cfg = ["S -> aSb | ~"] in
+		let cfg = Set.make ["S -> aSb | ~"] in
 		let rules = CFGSyntax.parse cfg in
 			CFGSyntax.show rules
 

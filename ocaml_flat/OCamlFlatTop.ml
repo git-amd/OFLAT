@@ -16,6 +16,13 @@ type finiteAutomaton = {
 	}
 	
 type regularExpression = string	
+
+type contextFreeGrammar = {
+		alphabet: char list;			
+		variables: char list;	
+		initial: char;
+		rules: string list
+	}
 	
 type enumeration = {
 		inside: string list ;
@@ -50,6 +57,27 @@ let fa_convertFrom (fa: finiteAutomaton) : FiniteAutomaton.t =
 let re_convertTo re : regularExpression = RegExpSyntax.toString re
 
 let re_convertFrom re = RegExpSyntax.parse re
+
+let cfg_convertTo (cfg: ContextFreeGrammar.t ) =
+	let alpha = Set.toList cfg.alphabet in
+	let variables = Set.toList cfg.variables in
+	let initial = cfg.initial in
+	let rules = CFGSyntax.toStringList cfg.rules in
+		{
+			alphabet = alpha;			
+			variables = variables;	
+			initial = initial;
+			rules = rules
+		}
+		
+let cfg_convertFrom (cfg: contextFreeGrammar) : ContextFreeGrammar.t =
+		{
+			alphabet = Set.make cfg.alphabet;			
+			variables = Set.make cfg.variables;	
+			initial = cfg.initial;
+			rules = CFGSyntax.parse (Set.make cfg.rules)
+		}
+	
 	
 let enum_convertTo (enum: Enumeration.t) = 
 	let inws = Set.map (fun w -> Util.stringFromList w) enum.inside in
@@ -85,6 +113,15 @@ let fa_accept fa w =
 	let a = new FiniteAutomaton.model (Representation fa) in
 	let w = Util.stringToWord w in
 		a#accept w 
+		
+let fa_traceAccept fa w = 
+	let fa = fa_convertFrom fa in
+	let a = new FiniteAutomaton.model (Representation fa) in
+	let w = Util.stringToWord w in
+	let p =	a#acceptWithTracing w in
+		List.map (fun (a,b) -> (a, Set.toList b)) p
+	
+		
 			
 let fa_generate fa l =
 	let fa = fa_convertFrom fa in
@@ -152,6 +189,13 @@ let re_accept re w =
 	let a = new RegularExpression.model (Representation re) in
 	let w = Util.stringToWord w in
 		a#accept w
+		
+let re_trace re w =
+	let re = re_convertFrom re in
+	let a = new RegularExpression.model (Representation re) in
+	let w = Util.stringToWord w in
+		a#allTrees w
+		
 				
 let re_generate re l =
 	let re = re_convertFrom re in
@@ -171,7 +215,50 @@ let re_toFA re =
 	let a = new RegularExpression.model (Representation re) in
 	let b =	a#toFiniteAutomaton in
 		fa_convertTo b#representation
+	
+
+	
+(* CFG functions *)
+
+let cfg_load file = 
+	let a = new ContextFreeGrammar.model (File file) in
+		cfg_convertTo a#representation
+
 		
+let cfg_accept cfg w =
+	let cfg = cfg_convertFrom cfg in
+	let a = new ContextFreeGrammar.model (Representation cfg) in
+	let w = Util.stringToWord w in
+		a#accept w
+		
+let cfg_trace cfg w =
+	let cfg = cfg_convertFrom cfg in
+	let a = new ContextFreeGrammar.model (Representation cfg) in
+	let l = a#acceptWithTracing w in
+		List.map (fun s -> Set.toList (Set.map (fun w -> Util.wordToString w) s)) l
+		
+		
+				
+let cfg_generate cfg l =
+	let cfg = cfg_convertFrom cfg in
+	let a = new ContextFreeGrammar.model (Representation cfg) in
+	let b = Set.map (fun w -> Util.stringFromList w) (a#generate l) in
+		Set.toList b
+		
+
+let cfg_toFA cfg =
+	let cfg = cfg_convertFrom cfg in
+	let a = new ContextFreeGrammar.model (Representation cfg) in
+	let b =	a#toFiniteAutomaton in
+		fa_convertTo b#representation
+		
+			
+let cfg_toRe cfg =
+	let cfg = cfg_convertFrom cfg in
+	let a = new ContextFreeGrammar.model (Representation cfg) in
+	let b =	a#toRegularExpression in
+		re_convertTo b#representation
+	
 		
 (* Enumeration functions *)	
 
@@ -210,7 +297,20 @@ let enum_testReFailures enum re =
 	let (ins,outs) = a#checkEnumerationFailures e in
 		enum_convertFailures ins outs
 	
-		
+let enum_testCfg enum cfg =
+	let cfg = cfg_convertFrom cfg in
+	let a = new ContextFreeGrammar.model (Representation cfg) in
+	let enum = enum_convertFrom enum in
+	let e = new Enumeration.enum (Representation enum) in
+		a#checkEnumeration e
+
+let enum_testCfgFailures enum cfg =
+	let cfg = cfg_convertFrom cfg in
+	let a = new ContextFreeGrammar.model (Representation cfg) in
+	let enum = enum_convertFrom enum in
+	let e = new Enumeration.enum (Representation enum) in
+	let (ins,outs) = a#checkEnumerationFailures e in
+		enum_convertFailures ins outs		
 
 
 

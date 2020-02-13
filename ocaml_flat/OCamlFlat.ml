@@ -32,6 +32,9 @@ type error = Error.t
 
 type symbol = char
 type symbols = symbol set
+type variable = char
+type variables = char set
+
 let epsilon = '~'  (* used for representing the empty transitions *)
 
 type word = symbol list
@@ -257,6 +260,7 @@ and (*module*) FiniteAutomaton : sig
 			
 			method acceptBreadthFirst: word -> bool
 			method accept : word -> bool
+			method acceptWithTracing : word -> (word * states) list 
 			method generate : int -> words
 			method generateUntil : int -> words
 			method reachable : state -> states
@@ -273,6 +277,7 @@ and (*module*) FiniteAutomaton : sig
 			method isMinimized : bool
 			
 			method toRegularExpression : RegularExpression.model
+			method toRegularGrammar : ContextFreeGrammar.model
 
 			method representation : t
 			method checkEnumeration : Enumeration.enum -> bool 
@@ -281,6 +286,8 @@ and (*module*) FiniteAutomaton : sig
 end
  =
 struct
+	open ContextFreeGrammar
+
 	type transition =
 		state	(* state *)
 	  * symbol	(* consumed input symbol *)
@@ -360,11 +367,11 @@ struct
 					("kind", `String self#kind);
 					("description", `String self#description);
 					("name", `String self#name);
-					("alphabet", `List (List.map (fun c -> `String (String.make 1 c)) (Set.toList rep.alphabet)));
+					("alphabet", `List (List.map (fun c -> `String (Util.charToString c)) (Set.toList rep.alphabet)));
 					("states", `List (List.map (fun s -> `String s) (Set.toList rep.allStates)));
 					("initialState", `String rep.initialState);
 					("transitions", `List (List.map (fun (a,b,c) ->
-						`List [`String a; `String (String.make 1 b); `String c]) (Set.toList rep.transitions)));
+						`List [`String a; `String (Util.charToString b); `String c]) (Set.toList rep.transitions)));
 					("acceptStates", `List (List.map (fun s -> `String s) (Set.toList rep.acceptStates)))
 				]
 
@@ -471,6 +478,28 @@ struct
                 let i = closeEmpty (Set.make [representation.initialState]) representation.transitions in
                     acceptX i w representation.transitions
 			
+			
+			
+			method acceptWithTracing (w:word): (word * states) list = 
+			
+			
+				let transition sts sy t =
+                    let nsts = Set.flatMap (fun st -> nextStates st sy t) sts in
+                        Set.union nsts (closeEmpty nsts t) in
+						
+                let rec acceptX sts w t =
+                    match w with
+                        [] -> [(w,sts)]
+                        |x::xs -> let nextSts = transition sts x t in
+									let res = acceptX nextSts xs t in
+										(w,sts)::res
+				in				
+						
+                let i = closeEmpty (Set.make [representation.initialState]) representation.transitions in
+				
+					acceptX i w representation.transitions
+				 
+				 
 			
 			
 			(** 
@@ -957,7 +986,23 @@ struct
 				let newRe = plusSet res in
 				
 					new RegularExpression.model (Representation (newRe))
-							
+				
+
+				
+			(** 
+			* This method converts the automaton into its equivalent regular grammar 
+			*
+			* @returns ContextFreeGrammar.model -> the resulting regular grammar			
+			*)
+			method toRegularGrammar = 		
+				
+				let re = self#toRegularExpression in
+				
+					re#toRegularGrammar
+			
+			
+					
+				
 			
 		end
 
@@ -1028,7 +1073,15 @@ struct
           	if fa#accept ['b';'a';'a'] then Util.println "word was accepted" else Util.println "word was not accepted";
           	if fa#accept ['b';'a';'b'] then Util.println "word was accepted" else Util.println "word was not accepted";
 			Util.println ""
+			
+	let testAccTrace () =
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_abc.json") in
+        let l = fa#acceptWithTracing ['a';'b';'e'] in
+		let l = List.map (fun (a,b) -> (a, Set.toList b)) l in
+			Util.println "word tracing: ";
+			Util.printTrace l
 
+			
 	let testAccept2 () =
         let fa = new FiniteAutomaton.model (File "test automaton/fa_accept2.json") in
           	if fa#accept [] then Util.println "word was accepted" else Util.println "word was not accepted";
@@ -1175,7 +1228,7 @@ struct
 	let runAll =
 		if active then (
 			Util.header "FiniteAutomatonTests";
-			testMinimize ()
+			testAccTrace ()
 		)
 end
 
@@ -1183,6 +1236,13 @@ end
 (* --- Regular Expression --- *)
 
 and (*module*) RegularExpression : sig
+
+	type reTree =
+    | Fail 
+    | Tree of word * RegExpSyntax.t * reTree list
+
+
+
 	type t = RegExpSyntax.t
 	val modelDesignation: unit -> string
 	class model :
@@ -1197,6 +1257,7 @@ and (*module*) RegularExpression : sig
 			method toJSon: json
 
 			method accept : word -> bool
+			method allTrees : word -> unit
 			method generate : int -> words
 			method tracing : unit
 			
@@ -1205,6 +1266,7 @@ and (*module*) RegularExpression : sig
 
 			method simplify : RegularExpression.model
 			method toFiniteAutomaton : FiniteAutomaton.model
+			method toRegularGrammar : ContextFreeGrammar.model 
 			
 			method representation : t
 			method checkEnumeration : Enumeration.enum -> bool
@@ -1216,6 +1278,15 @@ end
  =
 struct
 	open RegExpSyntax
+	open ContextFreeGrammar
+	open CFGSyntax
+	
+	type reTree =
+    | Fail 
+    | Tree of word * RegExpSyntax.t * reTree list
+
+	
+	
 	type t = RegExpSyntax.t
 	
 
@@ -1313,6 +1384,8 @@ struct
 				in
 					lang representation 
 				
+			
+				
 				
 			(** 
 			* This method tests if a given word is accepted by the regular expression 
@@ -1347,6 +1420,108 @@ struct
 					
 					acc representation w
 
+				
+				
+			(** 
+			* This method returns the derivation tree for the word acceptance
+			*
+			* @param w:word -> word to be tested for acceptance 
+			*
+			* @returns reTree list -> list of derivation trees 
+			*
+			*)		
+			method allTrees w : unit = 
+			
+			
+				let partition w = 
+					let rec partX w pword =
+						match w with 
+							[] -> Set.empty
+							| x::xs -> let fwp = pword@[x] in
+										Set.add (fwp, xs) (partX xs fwp) 
+					in
+					Set.add ([],w) (partX w []) 
+				in         
+
+				let rec acc w rep =                             
+					match rep with 
+						| Plus(l, r) -> 
+							let l1 = acc w l in
+							let r1 = acc w r in 
+								List.map (fun t -> Tree (w, rep, [t])) (l1 @ r1)
+					
+						| Seq(l, r) -> 
+							let wps =  partition w in
+							let wpl = Set.toList wps in 
+							List.flatten ( List.map (fun (wp1, wp2) ->  
+								let tl = acc wp1 l in
+								let tr = acc wp2 r in
+									List.flatten (List.map (fun x -> List.map 
+										(fun y -> Tree (w, rep, [x; y])) tr)tl)
+							) wpl)
+							
+						| Star(re) -> 
+							if w = [] then 
+								[Tree (['~'], rep, [])] 
+							else                                             
+								(let wps = Set.remove ([],w) (partition w) in
+								let wpl = Set.toList wps in 
+								List.flatten (List.map (fun (wp1, wp2) ->  
+									let tl = acc wp1 re in
+									let tr = acc wp2 (Star re) in
+									List.flatten (List.map (fun x -> List.map 
+										(fun y -> Tree (w, rep, [x; y])) tr) tl)) wpl))
+										
+						| Symb(c) -> 
+							if w = [c] then 
+								[Tree (w, rep, [])]
+							else 
+								[Tree (w, rep, [Fail])]
+							
+						| Empty -> 
+							if w = [] then
+								[Tree (['~'], rep, [])]
+							else
+								[Tree (w, rep, [Fail])]
+							
+						| Zero -> [Tree (w, rep, [Fail])]
+					
+				in      
+
+				let ac = acc w self#representation in
+				
+				
+						
+				let rec isNotFail t = 
+					match t with
+						Fail -> false
+						| Tree ([], re, []) -> true
+						| Tree (w, re, []) -> true
+						| Tree ([], re, x::xs) -> (isNotFail x) && (isNotFail (Tree ([], re, xs)))
+						| Tree (w, re, x::xs) -> (isNotFail x) && (isNotFail (Tree (w, re, xs)))
+				in
+									
+				let ts = List.filter (fun t -> isNotFail t) ac in
+				
+				
+				let printTreeX w re n = 
+					let s = String.make (3*n) ' ' in
+					print_string s; print_string (Util.wordToString w); print_string " -> "; 
+					print_string (RegExpSyntax.toString re); Util.println " ";
+				in
+				
+				let rec printTree t n = 
+					match t with
+						Fail -> Util.println "Fail"
+						| Tree ([], re, []) -> Util.println "TREH "
+						| Tree (w, re, []) -> printTreeX w re n
+						| Tree ([], re, x::xs) -> printTreeX [] re n; printTree x (n+1); List.iter (fun t -> printTree t (n+1)) xs
+						| Tree (w, re, x::xs) -> printTreeX w re n; printTree x (n+1); List.iter (fun t -> printTree t (n+1)) xs
+				in
+				
+					List.iter (fun t -> printTree t 0) ts
+				
+					
 					
 			(** 
 			* This method generates all words up to the given length that are generated by the regular expression 
@@ -1543,6 +1718,155 @@ struct
 					new FiniteAutomaton.model (Representation (compile representation)  ) 
 			
 			
+			
+			
+			(* This method converts the regular expression to its equivalent regular grammar 
+			*
+			* @returns FiniteAutomaton.model -> the resulting regular grammar 
+			*)	
+			method toRegularGrammar =
+						
+				(*auxiliary var for genVar function*)				
+				let k = ref 0 in
+				
+				(* generates new unused variable name for the cfg *)
+				let genVar () =
+					let n = !k in 
+					let () = k:= n + 1 in
+					let ascii = 65 + n in
+					if ascii < 65 || ascii > 90 then 'A' 
+						else Char.chr ascii
+				in	
+			
+				(* 
+				let convertPlsRules rl i1 i2 newInit  = 
+					(* swaps the initial variables of both old cfgs for the new initial var  *)
+					let swapInits c = if c = i1 || c = i2 then newInit else c in
+					
+					let newBody b = List.map (fun c -> swapInits c) b in					
+					let newRule r = {head = swapInits r.head; body = newBody r.body} in						
+						
+						Set.map (fun r -> newRule r) rl 
+					
+				in	
+				*)
+
+				(* create gcf rules for plus expression *)
+				let convertPlsRules rl i1 i2 newInit  = 
+				
+					let newRule1 = {head = newInit; body = [i1]} in
+					let newRule2 = {head = newInit; body = [i2]} in			
+						
+						Set.add newRule1 (Set.add newRule2 rl)  
+					
+				in				
+				
+				(* create gcf rules for seq expression *)
+				let convertSeqRules lcfg rcfg = 				
+					let rl1 = lcfg.rules in
+					let rl2 = rcfg.rules in
+					let alp1 = lcfg.alphabet in				
+					let rl = Set.union rl1 rl2 in
+					
+					let newBody r = 
+						let b = r.body in
+							match b with
+								| [c] when Set.belongs r rl1 && not (Set.belongs c alp1) && c <> epsilon -> b
+								| [c] when Set.belongs r rl1 && Set.belongs c alp1 -> [c; rcfg.initial]
+								| [epsilon] when Set.belongs r rl1 -> [epsilon; rcfg.initial]
+								| b when Set.belongs r rl2 -> b
+								| _ -> b
+					in					
+					let newRule r = {head = r.head; body = newBody r} in									
+						Set.map (fun r -> newRule r) rl 
+				in
+				
+				(* create gcf rules for star expression *)
+				let convertStrRules cfg =
+				
+					let newBody b =
+						match b with
+							| [c] when Set.belongs c cfg.alphabet -> [c; cfg.initial]
+							| _ -> b
+					in					
+					let r0 = {head = cfg.initial; body = [epsilon]} in
+					 
+					let newRule r = {head = r.head; body = newBody r.body} in									
+					let newRules = Set.map (fun r -> newRule r) cfg.rules in
+						Set.add r0 newRules 													
+				in
+				
+				
+				
+				let rec compile rep = 
+					match rep with 
+					
+						| Plus(l, r) -> let cl = compile l in
+										let cr = compile r in
+										let alp = Set.union cl.alphabet cr.alphabet in
+										let init = genVar () in
+										let vs = Set.add init (Set.union cl.variables cr.variables) in	
+										let rl = Set.union cl.rules cr.rules in
+										let rl = convertPlsRules rl cl.initial cr.initial init in
+										
+											{alphabet = alp; variables = vs; 
+												initial = init; rules = rl}		
+
+						| Seq(l, r) ->  let cl = compile l in
+										let cr = compile r in
+										let alp = Set.union cl.alphabet cr.alphabet in
+										let init = cl.initial in
+										let vs = Set.union cl.variables cr.variables in		
+										let rl = convertSeqRules cl cr in
+										
+											{alphabet = alp; variables = vs; 
+												initial = init; rules = rl}		
+												
+						| Star(re) ->   let cre = compile re in
+									    let alp = cre.alphabet in
+										let init = cre.initial in
+										let vs = cre.variables in									
+										let rl = convertStrRules cre in 
+										
+											{alphabet = alp; variables = vs; 
+												initial = init; rules = rl}		 
+												
+					
+						| Symb(c) -> let alp = Set.make [c] in
+									 let init = genVar () in
+									 let vars = Set.make [init] in									 
+									 let rules = Set.make [{head = init; body = [c]}] in
+									 
+										{alphabet = alp; variables = vars; 
+											initial = init; rules = rules}
+											
+						| Empty ->  let alp = Set.empty in
+									let init = genVar () in
+									let vars = Set.make [init] in		
+									let rules = Set.make [{head = init; body = [epsilon]}] in
+										{alphabet = alp; variables = vars; 
+											initial = init; rules = rules}
+											
+						| Zero -> 	 let alp = Set.empty in
+									 let init = genVar () in
+									 let var2 = genVar () in
+									 let vars = Set.make [init; var2] in	
+									 let r1 = {head = init; body = [var2]} in
+									 let r2 = {head = var2; body = [init]} in
+									 let rules = Set.make [r1; r2] in
+									 									 
+										{alphabet = alp; variables = vars; 
+											initial = init; rules = rules}
+				in
+			
+							
+				let cfg = compile representation in
+				
+					new ContextFreeGrammar.model (Representation (cfg))
+				
+			
+			
+			
 		end
 
 end
@@ -1695,7 +2019,12 @@ struct
 		let fa = new FiniteAutomaton.model (File "test Automaton/fa_toRe.json") in
 		let r = fa#toRegularExpression in
 		let j = r#toJSon in
-			JSon.show j			
+			JSon.show j		
+
+	let testToGrammar () =
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+		let res = re#toRegularGrammar in
+			JSon.show res#toJSon	
 	
 	
 	let testEnum () =
@@ -1703,12 +2032,16 @@ struct
 		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
 		let result = re#checkEnumeration e in
 			if result then print_string "it works" else print_string "it does not work"
+			
+	let testTrace () = 	
+		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
+			re#allTrees ['a';'c';'b';'a';'c';'b']
 		
 
 	let runAll =
 		if active then (
 			Util.header "RegularExpressionTests";
-			testSimplify ()
+			testTrace ()
 		)
 		
 				
@@ -1717,10 +2050,12 @@ end
 
 (**)
 and (*module*) ContextFreeGrammar : sig
+	type cfgTree = Leaf of char | Root of char * cfgTree list 
+
 	type t = {
 		alphabet : symbols;
-		variables : char set;
-		initial : char;
+		variables : variables;
+		initial : variable;
 		rules : CFGSyntax.rules;
 	}
 	
@@ -1738,26 +2073,78 @@ and (*module*) ContextFreeGrammar : sig
 			method representation: t
 			
 			method tracing: unit	
+			method isRegular: bool
 			method accept: word -> bool
+			method acceptWithTracing: word -> word set list
 			method generate: int -> words
+			method toFiniteAutomaton: FiniteAutomaton.model
+			method toRegularExpression: RegularExpression.model
 			method checkEnumeration: Enumeration.enum -> bool 
 			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
 		  end
 end
  =
 struct
+	type cfgTree = Leaf of char | Root of char * cfgTree list 
+
+	open FiniteAutomaton
 	open CFGSyntax
 	type t = {
 		alphabet : symbols;
-		variables : char set;
-		initial : char;
+		variables : variables;
+		initial : variable;
 		rules : CFGSyntax.rules;
 	}
 	
 	let modelDesignation () = "context free grammar"	
 
+	(*------Auxiliary functions---------*)
+	
+	(* given a head, returns the set of all its bodies according to the cfg's rules *)
+	let bodiesOfHead h rl =
+		let rls = Set.filter (fun r -> r.head = h) rl in
+			Set.map (fun r -> r.body) rls 
+	
+	
+	(* given 2 sets of words, to each word of the left set, appends each word of the right set *)
+	let concatWords lws rws = 
+		if lws = Set.empty then rws
+		else if rws = Set.empty then lws
+		else					
+			let pairs = Set.combinations lws rws  in
+				Set.map (fun (x,y) -> x@y) pairs
+		
+	(* tests if the number of symbols in the given word exceeds the given lenght *)
+	let exceedsMaxLen w l alph =
+		let cleanWord = List.filter (fun c ->  Set.belongs c alph) w in
+			(List.length cleanWord) > l
 
 	
+
+	let subX h rws rl =
+		let bs = bodiesOfHead h rl in
+			concatWords bs rws
+					
+				
+	(* applies the cfg's rules to the given word *)
+	let rec subVar w vs rs = 
+		match w with
+			| [] -> Set.make [[]]
+			| x::xs -> if (Set.belongs x vs) then subX x (subVar xs vs rs) rs
+				else concatWords (Set.make [[x]]) (subVar xs vs rs) 
+	
+				
+	(* removes the empty symbol from all non-empty words *)
+	let removeEpsi w = List.filter (fun c -> c <> epsilon) w 
+		
+				
+	(* filters out all words that have variables and cleans any unnecessary epsilon  *)		
+	let cleanNonWords ws vs =
+		let hasVar w = List.exists (fun c -> Set.belongs c vs) w in
+		let ws = Set.filter (fun w -> not (hasVar w)) ws in
+			Set.map (fun w -> removeEpsi w) ws
+				
+			
 	
 	class model (arg: t JSon.alternatives) =
 		object(self) inherit Model.model arg (modelDesignation ())
@@ -1775,7 +2162,7 @@ struct
 								alphabet = alphabet;
 								variables = variables;
 								initial = initial.[0];
-								rules = CFGSyntax.parse rules;
+								rules = CFGSyntax.parse (Set.make rules);
 							}
 
 			initializer self#handleErrors	(* placement is crucial - after representation *)
@@ -1785,8 +2172,8 @@ struct
 			
 			method toJSon: json =
 				let ruleToJSon {head=h; body=b} = 
-					let aa = String.concat "" (List.map (fun x -> String.make 1 x) b) in
-					let hh = String.make 1 h in
+					let aa = String.concat "" (List.map (fun x -> Util.charToString x) b) in
+					let hh = Util.charToString h in
 					`String (hh^" -> "^aa) in
 			
 				let rep = representation in
@@ -1794,32 +2181,37 @@ struct
 					("kind", `String self#kind);
 					("description", `String self#description);
 					("name", `String self#name);
-					("alphabet", `List (List.map (fun s -> `String (String.make 1 s)) (Set.toList rep.alphabet)));
-					("variables", `List (List.map (fun s -> `String (String.make 1 s)) (Set.toList rep.variables)));
-					("initial", `String (String.make 1 rep.initial) );
-					("rules", `List (List.map ruleToJSon rep.rules));
+					("alphabet", `List (List.map (fun s -> `String (Util.charToString s)) (Set.toList rep.alphabet)));
+					("variables", `List (List.map (fun s -> `String (Util.charToString s)) (Set.toList rep.variables)));
+					("initial", `String (Util.charToString rep.initial) );
+					("rules", `List (List.map ruleToJSon (Set.toList rep.rules)));
 					]
 								
 			method validate: unit = (
 			
+				let isIntersectionValid = (Set.inter representation.variables representation.alphabet) = Set.empty in
+			
 				let isInitialValid = Set.belongs representation.initial representation.variables in
 				
 				let areRuleHeadsValid = 
-					let hl = List.map (fun r -> r.head) representation.rules in
-					let hs = Set.make hl in
+					let hs = Set.map (fun r -> r.head) representation.rules in
 						Set.subset hs representation.variables 
 				in
 				 
 				let areRuleBodiesValid =
-					let bl = List.map (fun r -> Set.make r.body) representation.rules in
-					let bs = Set.make bl in
+					let bs = Set.map (fun r -> Set.make r.body) representation.rules in
 					let allValidSymbs = Set.add epsilon (Set.union representation.alphabet representation.variables) in
 					let res = Set.exists (fun b -> not (Set.subset b allValidSymbs)) bs in
 						not res
 				in
 				
+				if not isIntersectionValid then 
+					Error.error self#name
+            			"intersection between alphabet and variables is not empty" ()
+            	;
+				
 				if not isInitialValid then
-            		Error.error (String.make 1 representation.initial)
+            		Error.error (Util.charToString representation.initial)
             			"initial does not belong to the set of all variables" ()
             	;
             	
@@ -1835,58 +2227,54 @@ struct
 			
 			method tracing: unit = ()
 			
-			
-			method accept (w:word) : bool = 
-			
-			
-				(* any word with a symbol not from the cfg alphabet will not be accepted *)
-				if not (Set.subset (Set.make w) representation.alphabet) then false else
-				
+			(* This method checks if the grammar is regular 
+			*
+			* @returns bool -> true if regular, false otherwise
+			*)	
+			method isRegular : bool = 
 				
 				let vs = representation.variables in
+				let alp = representation.alphabet in
+				
+				let bs = Set.map (fun r -> r.body) representation.rules  in
 					
-				(* given a head, returns the set of all its bodies according to the cfg's rules *)
-				let bodiesOfHead h rl =
-					let rls = List.filter (fun r -> r.head = h) rl in
-					let bl = List.map (fun r -> r.body) rls in
-						Set.make bl
-				in	
-				
-				(* given 2 sets of words, to each word of the left set, appends each word of the right set *)
-				let concatWords lws rws = 
-					if lws = Set.empty then rws
-					else if rws = Set.empty then lws
-					else					
-						let pairs = Set.combinations lws rws  in
-							Set.map (fun (x,y) -> x@y) pairs
-				in	
-				
-				
-				let subX h rws rl =
-					let bs = bodiesOfHead h rl in
-						concatWords bs rws
-				in					
-				
-				(* applies the cfg's rules to the given word *)
-				let rec subVar w vs rs = 
-					match w with
-						| [] -> Set.make [[]]
-						| x::xs -> if (Set.belongs x vs) then subX x (subVar xs vs rs) rs
-									else concatWords (Set.make [[x]]) (subVar xs vs rs) 
+				let isRightLinear bs =
+					let isRightLinearX b = 
+						match b with
+							| [a] -> (Set.belongs a alp) || a = epsilon
+							| [a; v] -> (Set.belongs a alp) && (Set.belongs v vs)
+							| _ -> false
+					in
+						Set.for_all (fun b -> isRightLinearX b) bs
+				in
+					
+				let isLeftLinear bs = 
+					let rec isLeftLinearX b = 
+						match b with
+							| [a] -> (Set.belongs a alp) || a = epsilon
+							| [v; a] -> (Set.belongs v vs) && (Set.belongs a alp)
+							| _ -> false
+					in
+						Set.for_all (fun b -> isLeftLinearX b) bs
 				in
 				
+					isRightLinear bs || isLeftLinear bs
+					
+			
+			(* This method checks if the given word is accepted by the grammar 
+			*
+			* @param testWord -> word to be tested
+			*
+			* @returns bool -> true if it accepts the word, false otherwise
+			*)	
+			method accept (testWord:word) : bool = 			
+			
+				(* any word with a symbol not from the cfg alphabet will not be accepted 
+				if not (Set.subset (Set.make testWord) representation.alphabet) then false else
+				*)
 				
-				let exceedsMaxLen w l alph =
-					let cleanWord = List.filter (fun c ->  Set.belongs c alph) w in
-						(List.length cleanWord) > l
-				in
+				let vs = representation.variables in
 				
-				
-				(* removes the empty symbol from all non-empty words *)
-				let removeEpsi w = if w = [epsilon] then [] else List.filter (fun c -> c <> epsilon) w in
-				
-				
-				(* ----------------- *)
 				
 				(* for word wa, get subword to the left of its first variable *)
 				let rec getPrefix wa =
@@ -1935,82 +2323,166 @@ struct
 				in
 			
 				(* the word inst discarded only if it cant be discarded by neither its prefix nor its suffix *)
-				let toKeep w ow = (w = [] && ow = [])  || (keepByPrefix w ow && keepBySufix w ow) in
+				let toKeep w tw = (w = [] && tw = [])  || (keepByPrefix w tw && keepBySufix w tw) in
 			
 				
 				let alph = representation.alphabet in
 				let vs = representation.variables in
 				let rs = representation.rules in
-				let l = List.length w in
-				let ow = w in				
+				let l = List.length testWord in
 				
 				let nextGeneration ws =	
 					let subsWs = Set.flatMap (fun w -> subVar w vs rs) ws in
 					let rws = Set.filter (fun w -> not (exceedsMaxLen w l alph)) subsWs in
 					let rws = Set.map (fun w -> removeEpsi w) rws in
-						Set.filter (fun w -> toKeep w ow ) rws 
+						Set.filter (fun w -> toKeep w testWord ) rws 
 												
-				in
-				
+				in				
 								
 				let start = Set.make [[representation.initial]] in
 				
 				let res = Set.historicalFixedPoint nextGeneration start in
-					Set.exists (fun x -> x = ow ) res
-
-				
-			
-			
-			method generate (length:int) : words =  
+					Set.exists (fun x -> x = testWord ) res
 					
-				(* given a head, returns the set of all its bodies according to the cfg's rules *)
-				let bodiesOfHead h rl =
-					let rls = List.filter (fun r -> r.head = h) rl in
-					let bl = List.map (fun r -> r.body) rls in
-						Set.make bl
-				in	
 				
-				(* given 2 sets of words, to each word of the left set, appends each word of the right set *)
-				let concatWords lws rws = 
-					if lws = Set.empty then rws
-					else if rws = Set.empty then lws
-					else					
-						let pairs = Set.combinations lws rws  in
-							Set.map (fun (x,y) -> x@y) pairs
-				in	
+			
+
+			method acceptWithTracing (testWord:word) = 
+			
+			
+			(* 
+			let rec subVar w vs rs = 
+				match w with
+					| [] -> Set.make [[]]
+					| x::xs -> if (Set.belongs x vs) then subX x (subVar xs vs rs) rs
+						else concatWords (Set.make [[x]]) (subVar xs vs rs) 
+			
+					
+
+			
+			let f g w t =
+				match t with
+					Leaf x -> [t]
+				   | Leaf v -> expand g val
+				   | Inner [] -> []
+				| Inner (x::xs) -> let l1 = f g w x in
+									let l2 = f g w (Inner xs) in
+									(::)
+			*)
+			
+				let vs = representation.variables in
 				
 				
-				let subX h rws rl =
-					let bs = bodiesOfHead h rl in
-						concatWords bs rws
-				in					
-				
-				(* applies the cfg's rules to the given word *)
-				let rec subVar w vs rs = 
+				(* for word wa, get subword to the left of its first variable *)
+				let rec getPrefix wa =
+					match wa with
+						| [] -> []
+						| x::xs -> if Set.belongs x vs then [] else x::(getPrefix xs) 
+				in
+						
+				(* for word wa, get subword to the rigth of its last variable *)
+				let getSuffix wa =
+					let rec getSuffixX wa sfx =
+						match wa with
+							| [] -> sfx
+							| x::xs -> let auxSfx = sfx@[x] in 
+										if Set.belongs x vs then getSuffixX xs []
+											else getSuffixX xs auxSfx
+					in
+						getSuffixX wa []
+				in
+			
+				let rec firstNElements w n =
 					match w with
-						| [] -> Set.make [[]]
-						| x::xs -> if (Set.belongs x vs) then subX x (subVar xs vs rs) rs
-									else concatWords (Set.make [[x]]) (subVar xs vs rs) 
+						| [] -> []
+						| x::xs -> if n > 0 then x::(firstNElements xs (n-1)) else [] 
+				in
+						
+				let rec lastNElements w n =
+					match w with
+						| [] -> []
+						| x::xs -> if n < (List.length w) then lastNElements xs n else w  
 				in
 				
-				(* removes the empty symbol from all non-empty words *)
-				let removeEpsi w = List.filter (fun c -> c <> epsilon) w in
-				
-				
-				let cleanNonWords ws vs =
-					let hasVar w = List.exists (fun c -> Set.belongs c vs) w in
-					let ws = Set.filter (fun w -> not (hasVar w)) ws in
-						Set.map (fun w -> removeEpsi w) ws
-				in
-				
-				
-				
-				let exceedsMaxLen w l alph =
-					let cleanWord = List.filter (fun c ->  Set.belongs c alph) w in
-						(List.length cleanWord) > l
+				(* a word can be discarded if its prefix does not match the leftmostmost part of word w *)
+				let keepByPrefix genW testW =
+					let pgw = getPrefix genW in
+					let ptw = firstNElements testW (List.length pgw) in
+						pgw = [] || pgw = ptw
 				in
 				
 				
+				(* a word can be discarded if its suffix does not match the rightmost part of word w *)
+				let keepBySufix genW testW =
+					let sgw = getSuffix genW in
+					let stw = lastNElements testW (List.length sgw) in
+						sgw = [] || sgw = stw
+				in
+			
+				(* the word inst discarded only if it cant be discarded by neither its prefix nor its suffix *)
+				let toKeep w tw = (w = [] && tw = [])  || (keepByPrefix w tw && keepBySufix w tw) in
+			
+				
+				let alph = representation.alphabet in
+				let vs = representation.variables in
+				let rs = representation.rules in
+				let l = List.length testWord in
+				
+				let nextGeneration ws =	
+					let subsWs = Set.flatMap (fun w -> subVar w vs rs) ws in
+					let rws = Set.filter (fun w -> not (exceedsMaxLen w l alph)) subsWs in
+					let rws = Set.map (fun w -> removeEpsi w) rws in
+						Set.filter (fun w -> toKeep w testWord ) rws 
+												
+				in	
+				
+				let start = Set.make [[representation.initial]] in
+				
+				let res = Set.historicalFixedPointTracing nextGeneration start in
+				
+				let fg w se =
+					let sa = subVar w vs rs in
+					let inter = Set.inter sa se in
+						inter <> Set.empty
+				in
+				
+				let rec g l se =
+					match l with 
+						| [] -> []
+						| x::xs -> let a = Set.filter (fun w -> fg w se) x in
+									let b = g xs a in
+										[a]@b
+				in
+				
+				let f l =
+					match l with
+						| [] -> l						
+						| x::y::xs -> if x = Set.empty then l
+									else 
+										let a = Set.make [testWord] in
+											g (y::xs) a
+						| x::xs -> if x = Set.empty then l
+									else 
+										let a = Set.make [testWord] in
+											g l a
+				in
+				
+				let rl = List.rev res in
+					List.rev (f rl) 
+				
+			
+			
+			
+			
+			
+			
+			(* This method generates all words up the the given lenght that belong to the grammars language 
+			*
+			* @ param lenght -> the max lenght of generated words
+			*
+			* @returns words -> the set of generated words 
+			*)	
+			method generate (length:int) : words =  
 				
 				let alph = representation.alphabet in
 				let vs = representation.variables in
@@ -2022,14 +2494,69 @@ struct
 						Set.filter (fun w -> not (exceedsMaxLen w length alph)) subsWs
 				in
 				
-				
-				
 				let start = Set.make [[representation.initial]] in
 				
 				let res = Set.historicalFixedPoint nextGeneration start in
 								
 					cleanNonWords res vs
 				
+			(* This method converts the right-linear grammar to its automaton equivalent
+			*
+			* @pre - the grammar needs to be regular
+			*
+			* @returns FiniteAutomaton.model -> the equivalent finite automaton
+			*)	
+			method toFiniteAutomaton =
+			
+				let alp = representation.alphabet in
+				let vrs = representation.variables in
+				let toStr = Util.charToString in	
+				
+				(* This name will always be unique in the generated automaton *)
+				let accSt = "AccSt" in
+				
+				let alphabet = alp in
+				let states = Set.map (fun v -> toStr v) representation.variables in
+				let allStates = Set.add accSt states in				
+				let initialState = toStr representation.initial in				
+				let acceptStates = Set.make [accSt] in
+				
+							
+				
+				let ruleToTrans rh rb =					
+					match rb with 						
+						| [s;v] when Set.belongs s alp && Set.belongs v vrs	-> Set.make [(toStr rh, s, toStr v)]
+						
+						| [v] when Set.belongs v vrs -> Set.make [(toStr rh, epsilon, toStr v)]
+									
+						| [s] when Set.belongs s alp -> Set.make [(toStr rh, s, accSt)]						
+						
+						| [e] when e = epsilon -> Set.make [(toStr rh, epsilon, accSt)]
+						
+						| _ -> Set.empty
+				in 
+
+				let transitions = Set.flatMap (fun r -> ruleToTrans r.head r.body) representation.rules in	
+				
+			
+				let fa = {alphabet = alphabet; allStates = allStates; initialState = initialState; 
+							transitions = transitions; acceptStates = acceptStates} in
+							
+					new FiniteAutomaton.model (Representation (fa)) 
+					
+				
+			(* This method converts the right-linear grammar to its equivalent regular expression
+			*
+			* @pre - the grammar needs to be regular
+			*
+			* @returns FiniteAutomaton.model -> the equivalent regular expression
+			*)		
+			method toRegularExpression =
+				
+				let fa = self#toFiniteAutomaton in
+				
+					fa#toRegularExpression 	
+			
 				
 			
 		end
@@ -2047,20 +2574,49 @@ struct
 		let j = m#toJSon in
 			JSon.show j
 			
+	let testRegular () =
+		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
+		let ws = m#isRegular in
+			if ws then Util.println "is regular" else Util.println "is not regular"		
+		
+			
 	let testAcc () =
 		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
 		let ws = m#accept [] in
 			if ws then Util.println "Word was accepted" else Util.println "Word was not accepted"
-			
+	
+	
+	let testTrace () =
+		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
+		let l =	m#acceptWithTracing ['0';'1'] in
+			List.iter (fun s -> Set.iter (fun w -> Util.printWord w) s) l
+	
 	let testGen () =
 		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
 		let ws = m#generate 4 in
 			Set.iter (fun w -> Util.printWord w) ws
 	
+	
+	let testToGrammar() =
+		let m = new RegularExpression.model (File "test regEx/re_simple.json") in
+		let res = m#toRegularGrammar in
+			JSon.show res#toJSon	
+	
+	let testToAutomaton () =
+		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
+		let res = m#toFiniteAutomaton in
+			JSon.show res#toJSon		
+	
+	let testToRe () =
+		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
+		let res = m#toRegularExpression in
+			JSon.show res#toJSon	
+	
+	
 	let runAll =
 		if active then (
 			Util.header "ContextFreeGrammarTests";
-			testAcc ()
+			testTrace ()
 		)
 
 end		
