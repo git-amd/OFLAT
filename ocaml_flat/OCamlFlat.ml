@@ -12,9 +12,9 @@
 *)
 
 
-open OCamlFlatSupport  
+open OCamlFlatSupport 
 
-(*#use "OCamlFlatSupport.ml";;*)
+(*#use "OCamlFlatSupport.ml";; *)
 (* --- Configuration --- *)
 
 module Configuration = struct
@@ -103,8 +103,8 @@ and (*module*) Model : sig
 			method virtual accept : word -> bool
 			method virtual generate : int -> words
 			method virtual tracing : unit
-			method checkEnumeration : Enumeration.enum -> bool 
-			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
+			method checkExercise : Exercise.exercise -> bool 
+			method checkExerciseFailures : Exercise.exercise -> (words * words) 
 		  end
 end
  =
@@ -127,22 +127,22 @@ struct
 			method virtual accept: word -> bool
 			method virtual generate: int -> words
 			method virtual tracing: unit
-			method checkEnumeration (enum:Enumeration.enum) = 
-						Set.for_all (fun w -> self#accept w) enum#representation.inside
-					 && Set.for_all (fun w -> not (self#accept w)) enum#representation.outside
+			method checkExercise (exercise:Exercise.exercise) = 
+						Set.for_all (fun w -> self#accept w) exercise#representation.inside
+					 && Set.for_all (fun w -> not (self#accept w)) exercise#representation.outside
 					 
-			method checkEnumerationFailures (enum:Enumeration.enum) = 
-				(Set.filter (fun w -> not (self#accept w)) enum#representation.inside,
-					Set.filter (fun w -> self#accept w) enum#representation.outside)
+			method checkExerciseFailures (exercise:Exercise.exercise) = 
+				(Set.filter (fun w -> not (self#accept w)) exercise#representation.inside,
+					Set.filter (fun w -> self#accept w) exercise#representation.outside)
 
 	end
 
 end
 
 
-(* --- Enumeration --- *)
+(* --- Exercise --- *)
 
-and (*module*) Enumeration : sig
+and (*module*) Exercise : sig
 
 	type t = {
 		problem : string;
@@ -150,7 +150,7 @@ and (*module*) Enumeration : sig
 		outside : words
 	}		
 	
-	class enum :	
+	class exercise :	
 		
 	  t JSon.alternatives -> 
 		  object
@@ -176,7 +176,7 @@ struct
 		outside : words
 	}				
 		
-	class enum (arg: 'r JSon.alternatives ) =
+	class exercise (arg: 'r JSon.alternatives ) =
 		object(self) inherit Entity.entity arg "enumeration"
 		
 			val representation: t =
@@ -213,7 +213,7 @@ struct
 	end
 end
 
-and (*module*) EnumerationTests : sig
+and (*module*) ExerciseTests : sig
 end
  =
 struct
@@ -221,7 +221,7 @@ struct
 let active = false
 
 	let test0 () =
-		let e = new Enumeration.enum (File "test enums/enum_astar.json") in
+		let e = new Exercise.exercise (File "test enums/enum_astar.json") in
 			let j = e#toJSon in
 				JSon.show j
 				
@@ -260,7 +260,7 @@ and (*module*) FiniteAutomaton : sig
 			
 			method acceptBreadthFirst: word -> bool
 			method accept : word -> bool
-			method acceptWithTracing : word -> (word * states) list 
+			method acceptWithTracing : word -> unit
 			method generate : int -> words
 			method generateUntil : int -> words
 			method reachable : state -> states
@@ -280,8 +280,8 @@ and (*module*) FiniteAutomaton : sig
 			method toRegularGrammar : ContextFreeGrammar.model
 
 			method representation : t
-			method checkEnumeration : Enumeration.enum -> bool 
-			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
+			method checkExercise : Exercise.exercise -> bool 
+			method checkExerciseFailures : Exercise.exercise -> (words * words) 
 		  end
 end
  =
@@ -480,7 +480,7 @@ struct
 			
 			
 			
-			method acceptWithTracing (w:word): (word * states) list = 
+			method acceptWithTracing (w:word): unit = 
 			
 			
 				let transition sts sy t =
@@ -497,7 +497,18 @@ struct
 						
                 let i = closeEmpty (Set.make [representation.initialState]) representation.transitions in
 				
-					acceptX i w representation.transitions
+				let res = acceptX i w representation.transitions in
+				
+				let printRes w sts = 
+					print_string "('";
+					print_string (Util.wordToString w);
+					print_string "',[";
+					Set.iter (fun st -> print_string st; print_string ";") sts;
+					print_string "])";
+					
+				in
+				
+				List.iter (fun (w,sts) -> printRes w sts; print_string ";";) res; Util.println ""
 				 
 				 
 			
@@ -1076,10 +1087,7 @@ struct
 			
 	let testAccTrace () =
 		let fa = new FiniteAutomaton.model (File "test automaton/fa_abc.json") in
-        let l = fa#acceptWithTracing ['a';'b';'e'] in
-		let l = List.map (fun (a,b) -> (a, Set.toList b)) l in
-			Util.println "word tracing: ";
-			Util.printTrace l
+			fa#acceptWithTracing ['a';'b';'e'] 
 
 			
 	let testAccept2 () =
@@ -1269,8 +1277,8 @@ and (*module*) RegularExpression : sig
 			method toRegularGrammar : ContextFreeGrammar.model 
 			
 			method representation : t
-			method checkEnumeration : Enumeration.enum -> bool
-			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
+			method checkExercise : Exercise.exercise -> bool
+			method checkExerciseFailures : Exercise.exercise -> (words * words) 
 
 			
 		  end
@@ -2028,9 +2036,9 @@ struct
 	
 	
 	let testEnum () =
-		let e = new Enumeration.enum (File "test enums/enum_astar.json")  in
+		let e = new Exercise.exercise (File "test enums/enum_astar.json")  in
 		let re = new RegularExpression.model (File "test regEx/re_simple.json") in
-		let result = re#checkEnumeration e in
+		let result = re#checkExercise e in
 			if result then print_string "it works" else print_string "it does not work"
 			
 	let testTrace () = 	
@@ -2075,12 +2083,12 @@ and (*module*) ContextFreeGrammar : sig
 			method tracing: unit	
 			method isRegular: bool
 			method accept: word -> bool
-			method acceptWithTracing: word -> word set list
+			method acceptWithTracing: word -> unit
 			method generate: int -> words
 			method toFiniteAutomaton: FiniteAutomaton.model
 			method toRegularExpression: RegularExpression.model
-			method checkEnumeration: Enumeration.enum -> bool 
-			method checkEnumerationFailures : Enumeration.enum -> (words * words) 
+			method checkExercise: Exercise.exercise -> bool 
+			method checkExerciseFailures : Exercise.exercise -> (words * words) 
 		  end
 end
  =
@@ -2350,25 +2358,6 @@ struct
 			method acceptWithTracing (testWord:word) = 
 			
 			
-			(* 
-			let rec subVar w vs rs = 
-				match w with
-					| [] -> Set.make [[]]
-					| x::xs -> if (Set.belongs x vs) then subX x (subVar xs vs rs) rs
-						else concatWords (Set.make [[x]]) (subVar xs vs rs) 
-			
-					
-
-			
-			let f g w t =
-				match t with
-					Leaf x -> [t]
-				   | Leaf v -> expand g val
-				   | Inner [] -> []
-				| Inner (x::xs) -> let l1 = f g w x in
-									let l2 = f g w (Inner xs) in
-									(::)
-			*)
 			
 				let vs = representation.variables in
 				
@@ -2440,40 +2429,26 @@ struct
 				
 				let res = Set.historicalFixedPointTracing nextGeneration start in
 				
-				let fg w se =
-					let sa = subVar w vs rs in
-					let inter = Set.inter sa se in
-						inter <> Set.empty
-				in
 				
-				let rec g l se =
-					match l with 
-						| [] -> []
-						| x::xs -> let a = Set.filter (fun w -> fg w se) x in
-									let b = g xs a in
-										[a]@b
-				in
-				
-				let f l =
+				let trimRes l =
 					match l with
-						| [] -> l						
-						| x::y::xs -> if x = Set.empty then l
-									else 
-										let a = Set.make [testWord] in
-											g (y::xs) a
-						| x::xs -> if x = Set.empty then l
-									else 
-										let a = Set.make [testWord] in
-											g l a
+					| [] -> []
+					| x::xs -> if Set.belongs testWord x then xs
+								else l
 				in
 				
-				let rl = List.rev res in
-					List.rev (f rl) 
+				let res2 = List.rev (trimRes (List.rev res)) in
 				
-			
-			
-			
-			
+								
+				let printWset ws = 
+					print_string "[";
+					Set.iter (fun w -> print_string (Util.wordToString w); print_string ";") ws;
+					Util.println "]";
+				in
+				
+					List.iter (fun ws -> printWset ws) res2
+				
+				
 			
 			
 			(* This method generates all words up the the given lenght that belong to the grammars language 
@@ -2588,8 +2563,7 @@ struct
 	
 	let testTrace () =
 		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in
-		let l =	m#acceptWithTracing ['0';'1'] in
-			List.iter (fun s -> Set.iter (fun w -> Util.printWord w) s) l
+			m#acceptWithTracing ['0';'1'] 
 	
 	let testGen () =
 		let m = new ContextFreeGrammar.model (File "test cfg/cfg_abc.json") in

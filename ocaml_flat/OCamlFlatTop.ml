@@ -24,7 +24,7 @@ type contextFreeGrammar = {
 		rules: string list
 	}
 	
-type enumeration = {
+type exercise = {
 		inside: string list ;
 		outside: string list
 	}	
@@ -79,24 +79,24 @@ let cfg_convertFrom (cfg: contextFreeGrammar) : ContextFreeGrammar.t =
 		}
 	
 	
-let enum_convertTo (enum: Enumeration.t) = 
-	let inws = Set.map (fun w -> Util.stringFromList w) enum.inside in
-	let outws = Set.map (fun w -> Util.stringFromList w) enum.outside in
+let exer_convertTo (exer: Exercise.t) = 
+	let inws = Set.map (fun w -> Util.stringFromList w) exer.inside in
+	let outws = Set.map (fun w -> Util.stringFromList w) exer.outside in
 		{
 			inside = Set.toList inws;
 			outside = Set.toList outws
 		}
 	
-let enum_convertFrom enum : Enumeration.t = 
-	let inws = List.map (fun s -> Util.listFromString s) enum.inside in
-	let outws = List.map (fun s -> Util.listFromString s) enum.outside in
+let exer_convertFrom exer : Exercise.t = 
+	let inws = List.map (fun s -> Util.listFromString s) exer.inside in
+	let outws = List.map (fun s -> Util.listFromString s) exer.outside in
 		{
 			problem = "";
 			inside = Set.make inws;
 			outside = Set.make outws
 		}	
 	
-let enum_convertFailures ins outs =
+let exer_convertFailures ins outs =
 	let ins = Set.map (fun w -> Util.stringFromList w) ins in
 	let outs = Set.map (fun w -> Util.stringFromList w) outs in
 		(Set.toList ins, Set.toList outs)
@@ -118,8 +118,7 @@ let fa_traceAccept fa w =
 	let fa = fa_convertFrom fa in
 	let a = new FiniteAutomaton.model (Representation fa) in
 	let w = Util.stringToWord w in
-	let p =	a#acceptWithTracing w in
-		List.map (fun (a,b) -> (a, Set.toList b)) p
+		a#acceptWithTracing w  
 	
 		
 			
@@ -234,8 +233,8 @@ let cfg_accept cfg w =
 let cfg_trace cfg w =
 	let cfg = cfg_convertFrom cfg in
 	let a = new ContextFreeGrammar.model (Representation cfg) in
-	let l = a#acceptWithTracing w in
-		List.map (fun s -> Set.toList (Set.map (fun w -> Util.wordToString w) s)) l
+	let w = Util.stringToWord w in
+		a#acceptWithTracing w  
 		
 		
 				
@@ -260,57 +259,57 @@ let cfg_toRe cfg =
 		re_convertTo b#representation
 	
 		
-(* Enumeration functions *)	
+(* Exercise functions *)	
 
 
-let enum_load file =
-	let e = new Enumeration.enum (File file) in
-		enum_convertTo e#representation			
+let exer_load file =
+	let e = new Exercise.exercise (File file) in
+		exer_convertTo e#representation			
 		
-let enum_testFA enum fa =
+let exer_testFA exer fa =
 	let fa = fa_convertFrom fa in
 	let a = new FiniteAutomaton.model (Representation fa) in
-	let enum = enum_convertFrom enum in
-	let e = new Enumeration.enum (Representation enum) in
-		a#checkEnumeration e
+	let exer = exer_convertFrom exer in
+	let e = new Exercise.exercise (Representation exer) in
+		a#checkExercise e
 
-let enum_testFAFailures enum fa =
+let exer_testFAFailures exer fa =
 	let fa = fa_convertFrom fa in
 	let a = new FiniteAutomaton.model (Representation fa) in
-	let enum = enum_convertFrom enum in
-	let e = new Enumeration.enum (Representation enum) in
-	let (ins,outs) = a#checkEnumerationFailures e in
-		enum_convertFailures ins outs
+	let exer = exer_convertFrom exer in
+	let e = new Exercise.exercise (Representation exer) in
+	let (ins,outs) = a#checkExerciseFailures e in
+		exer_convertFailures ins outs
 		
-let enum_testRe enum re =
+let exer_testRe exer re =
 	let re = re_convertFrom re in
 	let a = new RegularExpression.model (Representation re) in
-	let enum = enum_convertFrom enum in
-	let e = new Enumeration.enum (Representation enum) in
-		a#checkEnumeration e
+	let exer = exer_convertFrom exer in
+	let e = new Exercise.exercise (Representation exer) in
+		a#checkExercise e
 
-let enum_testReFailures enum re =
+let exer_testReFailures exer re =
 	let re = re_convertFrom re in
 	let a = new RegularExpression.model (Representation re) in
-	let enum = enum_convertFrom enum in
-	let e = new Enumeration.enum (Representation enum) in
-	let (ins,outs) = a#checkEnumerationFailures e in
-		enum_convertFailures ins outs
+	let exer = exer_convertFrom exer in
+	let e = new Exercise.exercise (Representation exer) in
+	let (ins,outs) = a#checkExerciseFailures e in
+		exer_convertFailures ins outs
 	
-let enum_testCfg enum cfg =
+let exer_testCfg exer cfg =
 	let cfg = cfg_convertFrom cfg in
 	let a = new ContextFreeGrammar.model (Representation cfg) in
-	let enum = enum_convertFrom enum in
-	let e = new Enumeration.enum (Representation enum) in
-		a#checkEnumeration e
+	let exer = exer_convertFrom exer in
+	let e = new Exercise.exercise (Representation exer) in
+		a#checkExercise e
 
-let enum_testCfgFailures enum cfg =
+let exer_testCfgFailures exer cfg =
 	let cfg = cfg_convertFrom cfg in
 	let a = new ContextFreeGrammar.model (Representation cfg) in
-	let enum = enum_convertFrom enum in
-	let e = new Enumeration.enum (Representation enum) in
-	let (ins,outs) = a#checkEnumerationFailures e in
-		enum_convertFailures ins outs		
+	let exer = exer_convertFrom exer in
+	let e = new Exercise.exercise (Representation exer) in
+	let (ins,outs) = a#checkExerciseFailures e in
+		exer_convertFailures ins outs		
 
 
 
