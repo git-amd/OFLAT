@@ -146,7 +146,8 @@ let fa_clean fa =
 		fa_convertTo b#representation			
 
 	
-let fa_toDeter fa =						
+let fa_toDeter fa =		
+	let fa = fa_convertFrom fa in
 	let a = new FiniteAutomaton.model (Representation fa) in
 	let b = a#toDeterministic in
 		fa_convertTo b#representation

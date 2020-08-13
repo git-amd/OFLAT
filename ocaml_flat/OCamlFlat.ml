@@ -12,9 +12,9 @@
 *)
 
 
-open OCamlFlatSupport 
+open OCamlFlatSupport  
 
-(*#use "OCamlFlatSupport.ml";; *)
+(*#use "OCamlFlatSupport.ml";;*)
 (* --- Configuration --- *)
 
 module Configuration = struct
@@ -1023,7 +1023,7 @@ and (*module*) FiniteAutomatonTests : sig
 end
  =
 struct
-	let active = false
+	let active = true
 
 	let test0 () =
 		let m = Model.loadModel "test automaton/fa_abc.json" in
@@ -1203,7 +1203,7 @@ struct
 			
 			
 	let testEquivalence () =
-		let fa = new FiniteAutomaton.model (File "test automaton/fa_minimize2.json") in
+		let fa = new FiniteAutomaton.model (File "test automaton/fa_abc.json") in
 		let s = fa#equivalencePartition in
 			Set.iter (fun s -> print_string "set: "; Util.printStates (Set.toList s)) s 
 			
@@ -1236,7 +1236,7 @@ struct
 	let runAll =
 		if active then (
 			Util.header "FiniteAutomatonTests";
-			testAccTrace ()
+			testEquivalence ()
 		)
 end
 
